@@ -350,7 +350,7 @@ struct ContentView: View {
 
     var footerCredit: some View {
         VStack(spacing: 2) {
-            Text("由小貓 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
+            Text("由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
             if let url = URL(string: "https://github.com/ST6AR1") {
                 Link("GitHub @ST6AR1", destination: url)
                     .underline(false)

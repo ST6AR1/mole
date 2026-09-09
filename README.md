@@ -59,5 +59,5 @@ MIT License，詳見 [LICENSE](LICENSE)。
 
 ---
 
-由小貓 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯
+由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯
 GitHub [@ST6AR1](https://github.com/ST6AR1)
