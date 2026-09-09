@@ -27,12 +27,22 @@ if [ -f icon/icon-source.png ]; then
   iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 fi
 
-echo ">> Stripping extended attributes (avoids codesign 'detritus' errors on iCloud-synced folders)..."
-xattr -cr "$APP"
-xattr -c "$APP"
-
 echo ">> Code-signing (ad-hoc)..."
-codesign --force --deep -s - "$APP"
+# On iCloud-synced folders, Finder/fileprovider can re-tag the bundle with
+# FinderInfo/xattrs a moment after we strip them, which makes codesign fail
+# with "resource fork ... not allowed". Retry a few times to ride out the race.
+for attempt in 1 2 3 4 5; do
+  xattr -cr "$APP" 2>/dev/null
+  xattr -c "$APP" 2>/dev/null
+  if codesign --force --deep -s - "$APP" 2>/tmp/smartlaunch-codesign-err.log; then
+    break
+  fi
+  if [ "$attempt" = 5 ]; then
+    cat /tmp/smartlaunch-codesign-err.log
+    exit 1
+  fi
+  sleep 0.3
+done
 
 echo ">> Done: $APP"
 echo "   Move it to /Applications or ~/Applications, or run ./install.sh"
