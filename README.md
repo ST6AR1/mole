@@ -6,7 +6,9 @@
 
 拖曳進去啟動，寫 vibecoding 專案的時候不用每次都自己想指令、開 Terminal、找 port。
 
-![icon](icon/icon-source.png)
+<img src="icon/icon-source.png" width="120" alt="icon">
+
+![Smart Launch 截圖](docs/screenshot.png)
 
 ## 為什麼做這個
 
