@@ -35,9 +35,18 @@ Smart Launch 想解決的就是這件事：**不用記得資料夾是什麼、�
 
 ## 安裝
 
-需要 macOS 12+ 與 Xcode Command Line Tools（`xcode-select --install`）。
+需要 macOS 12+。有兩種方式：
+
+### 方式一：直接下載（不用寫程式）
+
+1. 到 [Releases](https://github.com/ST6AR1/smart-launch/releases/latest) 下載最新的 `SmartLaunch-x.x.x.dmg`
+2. 打開 DMG，把 `SmartLaunch.app` 拖到 `Applications`
+3. 第一次打開會跳出「無法驗證開發者」的警告（因為這是免費開源專案，沒有付費的 Apple 開發者憑證）——在 Finder 裡**按住 Control 點兩下 App → 選「打開」**，或到「系統設定 → 隱私權與安全性」裡找到允許打開。之後就不會再跳出來了
+
+### 方式二：從原始碼安裝（需要 Xcode Command Line Tools）
 
 ```bash
+xcode-select --install   # 如果還沒裝過
 git clone https://github.com/ST6AR1/smart-launch.git
 cd smart-launch
 ./install.sh
@@ -46,12 +55,18 @@ cd smart-launch
 `install.sh` 會：
 1. 編譯 `SmartLaunch.app` 並裝到 `~/Applications`
 2. 把 `smart-launch.sh` / `ports.sh` 裝到 `~/bin/smartlaunch/`
-3. 在 `~/.zshrc` 加上 `ports` / `ports-watch` 指令
+3. 在 `~/.zshrc` 加上 `ports` / `ports-watch` 指令（方式一的 DMG 安裝沒有這個指令）
 
 只想重新編譯 App（不動 shell 設定）：
 
 ```bash
 ./build.sh
+```
+
+打包成可發布的 DMG：
+
+```bash
+./make-dmg.sh
 ```
 
 ## 使用方式
@@ -69,6 +84,7 @@ icon/              App 圖示、GitHub 圖示原始檔
 docs/              README 用的截圖
 build.sh           編譯成 SmartLaunch.app
 install.sh         編譯 + 安裝 + 設定 shell alias
+make-dmg.sh        編譯 + 打包成可發布的 .dmg
 ```
 
 ## 發布新版本

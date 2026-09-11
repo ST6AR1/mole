@@ -32,6 +32,10 @@ if [ -f icon/github-mark.png ]; then
   cp icon/github-mark.png "$APP/Contents/Resources/github-mark.png"
 fi
 
+echo ">> Bundling helper script (so the .app works standalone, no install.sh needed)..."
+cp bin/smart-launch.sh "$APP/Contents/Resources/smart-launch.sh"
+chmod +x "$APP/Contents/Resources/smart-launch.sh"
+
 echo ">> Code-signing (ad-hoc)..."
 # On iCloud-synced folders, Finder/fileprovider can re-tag the bundle with
 # FinderInfo/xattrs a moment after we strip them, which makes codesign fail

@@ -4,7 +4,7 @@ import Darwin
 
 // MARK: - Version check
 
-let currentVersion = "1.0.1"
+let currentVersion = "1.0.2"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -88,7 +88,14 @@ let devPatterns: Set<String> = [
     "uvicorn", "gunicorn", "flask", "dotnet"
 ]
 
-let scriptPath = NSHomeDirectory() + "/bin/smartlaunch/smart-launch.sh"
+// 優先用 app bundle 內附的腳本（DMG 拖進 /Applications 就能直接用，不需要另外跑 install.sh）；
+// 找不到才退回 ~/bin/smartlaunch/（給用 install.sh 裝、想要同時有 `ports` 指令的人）。
+let scriptPath: String = {
+    if let bundled = Bundle.main.path(forResource: "smart-launch", ofType: "sh") {
+        return bundled
+    }
+    return NSHomeDirectory() + "/bin/smartlaunch/smart-launch.sh"
+}()
 
 // 等待新服務出現的最長時間（秒）。Docker Desktop 冷啟動常常要 1 分鐘以上，所以給寬一點。
 let pollMaxAttempts = 150
