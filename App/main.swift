@@ -193,18 +193,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let hosting = NSHostingController(
-            rootView: ContentView().frame(width: 460, height: 640)
-        )
+        let hosting = NSHostingController(rootView: ContentView())
         let win = NSWindow(contentViewController: hosting)
-        win.title = "Smart Launch"
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
         win.isRestorable = false
         win.setFrameAutosaveName("")
         win.isReleasedWhenClosed = false
+        win.minSize = NSSize(width: 480, height: 620)
 
         let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: 460, height: 640)
+        let size = NSSize(width: 480, height: 680)
         let origin = NSPoint(
             x: screenFrame.midX - size.width / 2,
             y: screenFrame.midY - size.height / 2
@@ -239,6 +239,46 @@ app.setActivationPolicy(.regular)
 app.delegate = delegate
 app.run()
 
+// MARK: - Design tokens
+
+enum Palette {
+    static let windowBg = Color(red: 0.953, green: 0.949, blue: 0.937)      // #F3F2EF
+    static let heroBg = Color(red: 0.992, green: 0.992, blue: 0.984)        // #FDFDFB
+    static let rowBg = Color(red: 0.973, green: 0.969, blue: 0.953)         // #F8F7F3
+    static let rowBgMuted = Color(red: 0.961, green: 0.957, blue: 0.941)    // #F5F4F0
+    static let textPrimary = Color(red: 0.110, green: 0.110, blue: 0.118)   // #1C1C1E
+    static let textSecondary = Color(red: 0.557, green: 0.557, blue: 0.576) // #8E8E93
+    static let textTertiary = Color(red: 0.690, green: 0.686, blue: 0.675)  // #B0AFAC
+    static let danger = Color(red: 0.753, green: 0.224, blue: 0.169)        // #C0392B
+    static let localhostText = Color(red: 0.227, green: 0.227, blue: 0.235) // #3A3A3C
+    static let updateBg = Color(red: 0.933, green: 0.945, blue: 0.965)      // #EEF1F6
+    static let updateText = Color(red: 0.227, green: 0.353, blue: 0.549)    // #3A5A8C
+    static let primaryButtonBg = Color(red: 0.941, green: 0.937, blue: 0.925) // #F0EFEC
+}
+
+// 拖曳懸浮時的柔和漸層描邊，全 App 唯一使用玻璃感效果的地方
+let dragGradient = LinearGradient(
+    colors: [Color.blue.opacity(0.45), Color.green.opacity(0.35)],
+    startPoint: .topLeading, endPoint: .bottomTrailing
+)
+
+// 「選擇資料夾」這種主要操作用的 soft filled button
+struct SoftFilledButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(Palette.textPrimary)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Palette.primaryButtonBg)
+            )
+            .shadow(color: Color.black.opacity(configuration.isPressed ? 0.02 : 0.06), radius: 4, x: 0, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
 // MARK: - UI
 
 struct ContentView: View {
@@ -268,88 +308,43 @@ struct ContentView: View {
     var otherPorts: [PortInfo] { ports.filter { !$0.isDev } }
 
     var body: some View {
-        VStack(spacing: 14) {
-            Text("Smart Launch")
-                .font(.title2).bold()
+        VStack(alignment: .leading, spacing: 16) {
+            header
 
             if let update = updateAvailable {
-                HStack {
-                    Text("🎉 有新版本 v\(update.version) 可下載")
-                        .font(.caption)
-                    Spacer()
-                    Link("前往查看", destination: update.url)
-                        .font(.caption).bold()
-                }
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)))
+                updateBanner(update)
             }
 
-            dropZone
+            heroCard
+            autoCloseRow
+            runningProjectsHeader
 
-            Button("或選擇資料夾…") { chooseFolder() }
-                .buttonStyle(.bordered)
-
-            Divider()
-
-            HStack {
-                Text("自動過期時間").font(.subheadline)
-                Spacer()
-                Picker("", selection: $expireMinutes) {
-                    ForEach(expireOptions, id: \.minutes) { opt in
-                        Text(opt.label).tag(opt.minutes)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-            }
-            Text("超過時間會自動關閉「開發伺服器」；單一服務可勾選「常駐」跳過過期。")
-                .font(.caption2).foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if !autoExpiredNotice.isEmpty {
-                Text(autoExpiredNotice)
-                    .font(.caption).foregroundColor(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Divider()
-
-            HStack {
-                Text("目前運行的服務").font(.headline)
-                Spacer()
-                if !devPorts.isEmpty {
-                    Button("全部關閉") { pendingKillAll = true }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                        .controlSize(.small)
-                }
-                Button(action: refresh) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-            }
-
-            List {
-                Section("開發伺服器（拖進來啟動的專案）") {
+            ScrollView {
+                VStack(spacing: 10) {
                     if devPorts.isEmpty {
-                        Text("目前沒有偵測到").foregroundColor(.secondary).font(.caption)
+                        Text("目前沒有專案在跑")
+                            .font(.system(size: 12))
+                            .foregroundColor(Palette.textTertiary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
                     } else {
                         ForEach(devPorts) { info in
-                            devRow(info)
+                            projectRow(info)
                         }
                     }
-                }
-                DisclosureGroup("其他系統服務（\(otherPorts.count)，唯讀）", isExpanded: $showOtherServices) {
-                    ForEach(otherPorts) { info in
-                        systemRow(info)
+                    if !otherPorts.isEmpty {
+                        otherServicesDisclosure
                     }
                 }
+                .padding(.top, 2)
             }
-            .listStyle(.inset)
+            .frame(maxHeight: .infinity)
 
             footerCredit
         }
-        .padding(16)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Palette.windowBg)
         .onAppear(perform: refresh)
         .onAppear {
             checkForUpdate { version, url in
@@ -404,91 +399,256 @@ struct ContentView: View {
         persistentPortsRaw = set.sorted().joined(separator: ",")
     }
 
-    var footerCredit: some View {
-        VStack(spacing: 2) {
-            Text("由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
-            if let url = URL(string: "https://github.com/ST6AR1") {
-                Link("GitHub @ST6AR1", destination: url)
-                    .underline(false)
+    // MARK: Header
+
+    var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Smart Launch")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(Palette.textPrimary)
+                Text("讓本機專案重新啟動變簡單")
+                    .font(.system(size: 12))
+                    .foregroundColor(Palette.textSecondary)
+            }
+            Spacer()
+            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
+                Link(destination: url) {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(Palette.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(Color.black.opacity(0.05)))
+                }
+                .buttonStyle(.plain)
+                .help("在 GitHub 上查看這個專案")
             }
         }
-        .font(.caption2)
-        .foregroundColor(.secondary)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
     }
 
-    var dropZone: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                .foregroundColor(isTargeted ? .accentColor : .secondary.opacity(0.5))
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isTargeted ? Color.accentColor.opacity(0.12) : Color.gray.opacity(0.06))
-                )
-            VStack(spacing: 6) {
-                if isLaunching {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(launchStatus.isEmpty ? "正在啟動…" : launchStatus)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.horizontal, 12)
-                    Button("先不等了") { cancelWaiting() }
-                        .buttonStyle(.plain)
-                        .font(.caption2)
-                        .foregroundColor(.accentColor)
-                } else {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 30))
-                        .foregroundColor(.secondary)
-                    Text("把專案資料夾拖到這裡")
-                        .font(.subheadline)
-                    if !lastLaunched.isEmpty {
-                        Text("上次啟動：\(lastLaunched)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+    func updateBanner(_ update: (version: String, url: URL)) -> some View {
+        HStack {
+            Text("🎉 有新版本 v\(update.version) 可下載")
+                .font(.system(size: 12))
+                .foregroundColor(Palette.textPrimary)
+            Spacer()
+            Link("前往查看", destination: update.url)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Palette.updateText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Palette.updateBg))
+    }
+
+    // MARK: Hero — Launch Project
+
+    var heroCard: some View {
+        VStack(spacing: 10) {
+            if isLaunching {
+                ProgressView()
+                    .controlSize(.small)
+                Text(launchStatus.isEmpty ? "正在啟動…" : launchStatus)
+                    .font(.system(size: 12))
+                    .foregroundColor(Palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 12)
+                Button("先不等了") { cancelWaiting() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundColor(Palette.textSecondary)
+            } else {
+                Image(systemName: "folder")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundColor(Palette.textSecondary)
+                Text("把專案資料夾拖到這裡")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Palette.textPrimary)
+                Text("自動判斷並啟動 localhost")
+                    .font(.system(size: 12))
+                    .foregroundColor(Palette.textSecondary)
+                Button("選擇資料夾") { chooseFolder() }
+                    .buttonStyle(SoftFilledButtonStyle())
+                    .padding(.top, 4)
+                if !lastLaunched.isEmpty {
+                    Text("上次啟動：\(lastLaunched)")
+                        .font(.system(size: 10))
+                        .foregroundColor(Palette.textTertiary)
                 }
             }
         }
-        .frame(height: isLaunching ? 150 : 130)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: isLaunching ? 160 : 170)
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 30)
+                .fill(Palette.heroBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30)
+                        .strokeBorder(
+                            isTargeted ? AnyShapeStyle(dragGradient) : AnyShapeStyle(Color.clear),
+                            lineWidth: 2
+                        )
+                )
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 24, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }
     }
 
-    func devRow(_ info: PortInfo) -> some View {
+    // MARK: Auto Close — inline row, no card
+
+    var currentExpireLabel: String {
+        expireOptions.first(where: { $0.minutes == expireMinutes })?.label
+            .replacingOccurrences(of: "（預設）", with: "") ?? "\(expireMinutes) 分"
+    }
+
+    var autoCloseRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auto Close")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Palette.textPrimary)
+                    Text("閒置專案將自動關閉")
+                        .font(.system(size: 11))
+                        .foregroundColor(Palette.textSecondary)
+                }
+                Spacer()
+                Menu {
+                    ForEach(expireOptions, id: \.minutes) { opt in
+                        Button(opt.label) { expireMinutes = opt.minutes }
+                    }
+                } label: {
+                    Text(currentExpireLabel)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Palette.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.black.opacity(0.05)))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+            if !autoExpiredNotice.isEmpty {
+                Text(autoExpiredNotice)
+                    .font(.system(size: 10))
+                    .foregroundColor(Palette.textTertiary)
+            }
+        }
+    }
+
+    // MARK: Running Projects
+
+    var runningProjectsHeader: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("localhost:\(info.port)")
-                    .font(.system(.body, design: .monospaced)).bold()
-                    .foregroundColor(.accentColor)
-                    .underline()
-                    .onTapGesture { openBrowser(port: info.port) }
-                    .help("點一下在瀏覽器打開")
-                Text("\(info.processName) · PID \(info.pid) · \(info.uptime)")
-                    .font(.caption).foregroundColor(.secondary)
-                Text(info.command)
-                    .font(.caption2).foregroundColor(.secondary)
-                    .lineLimit(1)
+            Text("Running Projects")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(Palette.textPrimary)
+            Spacer()
+            if !devPorts.isEmpty {
+                Button("全部關閉") { pendingKillAll = true }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Palette.danger)
+            }
+            Button(action: refresh) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11))
+                    .foregroundColor(Palette.textSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    func shortUptime(_ totalSeconds: Int) -> String {
+        let days = totalSeconds / 86400
+        let hours = (totalSeconds % 86400) / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        if days > 0 { return "\(days) d" }
+        if hours > 0 { return "\(hours) hr" }
+        if minutes > 0 { return "\(minutes) min" }
+        return "< 1 min"
+    }
+
+    func projectRow(_ info: PortInfo) -> some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Text("localhost:\(info.port)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Palette.localhostText)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 8))
+                        .foregroundColor(Palette.textTertiary)
+                }
+                .onTapGesture { openBrowser(port: info.port) }
+                .help("\(info.uptime)\n\(info.command)")
+
+                Text("\(info.processName) · \(shortUptime(info.uptimeSeconds))")
+                    .font(.system(size: 11))
+                    .foregroundColor(Palette.textSecondary)
             }
             Spacer()
-            Toggle("常駐", isOn: Binding(
-                get: { isPersistent(info.port) },
-                set: { _ in togglePersistent(info.port) }
-            ))
-            .toggleStyle(.checkbox)
-            .help("開啟後這個服務不會被自動過期關閉")
+            Button(action: { togglePersistent(info.port) }) {
+                Image(systemName: isPersistent(info.port) ? "pin.fill" : "pin")
+                    .font(.system(size: 12))
+                    .foregroundColor(isPersistent(info.port) ? Palette.textPrimary : Palette.textTertiary)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .help("常駐：不會被自動過期關閉")
 
-            Button("關閉") { pendingKill = info }
-                .buttonStyle(.bordered)
-                .tint(.red)
+            Button("Stop") { pendingKill = info }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Palette.danger)
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 20).fill(Palette.rowBg))
+        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.black.opacity(0.04), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 1)
+    }
+
+    var otherServicesDisclosure: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: { showOtherServices.toggle() }) {
+                HStack {
+                    Text("System services (\(otherPorts.count))")
+                        .font(.system(size: 11))
+                        .foregroundColor(Palette.textTertiary)
+                    Spacer()
+                    Image(systemName: showOtherServices ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9))
+                        .foregroundColor(Palette.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showOtherServices {
+                VStack(spacing: 6) {
+                    ForEach(otherPorts) { info in
+                        HStack {
+                            Text("localhost:\(info.port)")
+                                .font(.system(size: 11))
+                                .foregroundColor(Palette.textSecondary)
+                            Text(info.processName)
+                                .font(.system(size: 10))
+                                .foregroundColor(Palette.textTertiary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Palette.rowBgMuted))
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 
     func openBrowser(port: String) {
@@ -497,14 +657,20 @@ struct ContentView: View {
         }
     }
 
-    func systemRow(_ info: PortInfo) -> some View {
-        HStack {
-            Text("localhost:\(info.port)")
-                .font(.system(.caption, design: .monospaced))
-            Text(info.processName)
-                .font(.caption).foregroundColor(.secondary)
-            Spacer()
+    // MARK: Footer
+
+    var footerCredit: some View {
+        VStack(spacing: 2) {
+            Text("由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
+            if let url = URL(string: "https://github.com/ST6AR1") {
+                Link("GitHub @ST6AR1", destination: url)
+                    .underline(false)
+            }
         }
+        .font(.system(size: 10))
+        .foregroundColor(Palette.textTertiary.opacity(0.7))
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
     }
 
     // fetchPorts() 會跑 lsof/ps，屬於阻塞式呼叫，一律丟到背景執行緒，避免卡住 UI
