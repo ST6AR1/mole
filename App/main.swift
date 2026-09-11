@@ -2,6 +2,42 @@ import SwiftUI
 import AppKit
 import Darwin
 
+// MARK: - Version check
+
+let currentVersion = "1.0.0"
+let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
+
+// 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
+func isVersion(_ a: String, newerThan b: String) -> Bool {
+    let pa = a.split(separator: ".").map { Int($0) ?? 0 }
+    let pb = b.split(separator: ".").map { Int($0) ?? 0 }
+    for i in 0..<max(pa.count, pb.count) {
+        let x = i < pa.count ? pa[i] : 0
+        let y = i < pb.count ? pb[i] : 0
+        if x != y { return x > y }
+    }
+    return false
+}
+
+// 開啟時問一次 GitHub「最新 release 是哪版」，有更新才回呼；離線或失敗就悄悄放棄，不打擾使用者
+func checkForUpdate(completion: @escaping (String, URL) -> Void) {
+    guard let url = URL(string: releasesAPI) else { return }
+    var request = URLRequest(url: url)
+    request.timeoutInterval = 5
+    URLSession.shared.dataTask(with: request) { data, _, _ in
+        guard let data = data,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tag = json["tag_name"] as? String,
+              let htmlURLString = json["html_url"] as? String,
+              let releaseURL = URL(string: htmlURLString)
+        else { return }
+        let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+        if isVersion(latest, newerThan: currentVersion) {
+            completion(latest, releaseURL)
+        }
+    }.resume()
+}
+
 // MARK: - Model
 
 struct PortInfo: Identifiable {
@@ -216,6 +252,7 @@ struct ContentView: View {
     @State private var isLaunching = false
     @State private var launchStatus: String = ""
     @State private var pollToken = UUID()
+    @State private var updateAvailable: (version: String, url: URL)?
 
     // 記住哪些 port 設為「保持背景常駐」(跨重啟保留)，以及全域自動過期時間
     @AppStorage("smartlaunch.persistentPorts") private var persistentPortsRaw: String = ""
@@ -234,6 +271,18 @@ struct ContentView: View {
         VStack(spacing: 14) {
             Text("Smart Launch")
                 .font(.title2).bold()
+
+            if let update = updateAvailable {
+                HStack {
+                    Text("🎉 有新版本 v\(update.version) 可下載")
+                        .font(.caption)
+                    Spacer()
+                    Link("前往查看", destination: update.url)
+                        .font(.caption).bold()
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)))
+            }
 
             dropZone
 
@@ -302,6 +351,13 @@ struct ContentView: View {
         }
         .padding(16)
         .onAppear(perform: refresh)
+        .onAppear {
+            checkForUpdate { version, url in
+                DispatchQueue.main.async {
+                    updateAvailable = (version, url)
+                }
+            }
+        }
         .onReceive(timer) { _ in refresh() }
         .alert(item: $pendingKill) { info in
             Alert(
