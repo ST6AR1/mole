@@ -6,9 +6,16 @@
 
 拖曳進去啟動，寫 vibecoding 專案的時候不用每次都自己想指令、開 Terminal、找 port。
 
-<img src="icon/icon-source.png" width="220" alt="icon">
+<img src="icon/icon-source.png" width="160" alt="icon">
 
-<img src="docs/screenshot.png" width="360" alt="Smart Launch 截圖">
+<img src="docs/slides/slide-04.png" width="640" alt="Auto Close：開著忘了關？讓它自己收掉">
+
+<p float="left">
+  <img src="docs/slides/slide-01.png" width="220" alt="Smart Launch 介紹">
+  <img src="docs/slides/slide-02.png" width="220" alt="為什麼做 Smart Launch">
+  <img src="docs/slides/slide-03.png" width="220" alt="核心功能">
+  <img src="docs/slides/slide-05.png" width="220" alt="開源資訊">
+</p>
 
 ## 為什麼做這個
 
