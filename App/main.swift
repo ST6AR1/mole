@@ -4,7 +4,7 @@ import Darwin
 
 // MARK: - Version check
 
-let currentVersion = "1.0.2"
+let currentVersion = "1.0.3"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
