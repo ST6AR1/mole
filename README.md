@@ -27,6 +27,7 @@ Smart Launch 想解決的就是這件事：**不用記得資料夾是什麼、�
 - **自動過期**：可設定多久沒手動處理就自動關閉（避免忘記關），也可以把特定服務標記「常駐」跳過
 - **Docker 自動處理**：偵測到 Docker Compose 專案但 Docker 沒開時，自動幫你啟動 Docker Desktop 並等待就緒
 - **`ports` 指令**：在任何 Terminal 輸入 `ports`，看目前 localhost 有什麼在跑（開發伺服器 / 系統背景服務分開顯示）
+- **自動更新提示**：開啟 App 時會檢查 GitHub 上的最新版本，有更新會在上方顯示提示，點一下就能前往下載
 
 ## 安裝
 
@@ -51,7 +52,7 @@ cd smart-launch
 
 ## 使用方式
 
-- 打開 `SmartLaunch.app`，把專案資料夾拖進視窗裡的虛線區塊
+- 打開 `SmartLaunch.app`，把專案資料夾拖進視窗中間那塊白色區域
 - 或直接把資料夾拖到 Dock 上的 SmartLaunch 圖示
 - 開新的 Terminal 分頁，輸入 `ports` 看目前有什麼在跑
 
@@ -60,10 +61,24 @@ cd smart-launch
 ```
 App/               SwiftUI + AppKit 原始碼（單一 main.swift）
 bin/               smart-launch.sh（偵測與啟動邏輯）、ports.sh（列出 localhost 服務）
-icon/              App 圖示原始檔
+icon/              App 圖示、GitHub 圖示原始檔
+docs/              README 用的截圖
 build.sh           編譯成 SmartLaunch.app
 install.sh         編譯 + 安裝 + 設定 shell alias
 ```
+
+## 發布新版本
+
+改完程式碼、確認沒問題後：
+
+1. 更新 `App/main.swift` 裡的 `currentVersion` 常數，跟 `App/Info.plist` 的 `CFBundleShortVersionString` 改成一樣的版號
+2. Commit、push
+3. 打 tag 建立 GitHub Release：
+   ```bash
+   gh release create v1.0.2 --title "v1.0.2" --notes "這次改了什麼"
+   ```
+
+已經裝過舊版的人，下次打開 App 就會看到更新提示。
 
 ## 授權
 
