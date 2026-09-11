@@ -27,6 +27,11 @@ if [ -f icon/icon-source.png ]; then
   iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 fi
 
+if [ -f icon/github-mark.png ]; then
+  echo ">> Copying GitHub icon asset..."
+  cp icon/github-mark.png "$APP/Contents/Resources/github-mark.png"
+fi
+
 echo ">> Code-signing (ad-hoc)..."
 # On iCloud-synced folders, Finder/fileprovider can re-tag the bundle with
 # FinderInfo/xattrs a moment after we strip them, which makes codesign fail

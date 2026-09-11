@@ -414,14 +414,31 @@ struct ContentView: View {
             Spacer()
             if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
                 Link(destination: url) {
-                    Image(systemName: "chevron.left.forwardslash.chevron.right")
-                        .font(.system(size: 14))
-                        .foregroundColor(Palette.textSecondary)
+                    githubIcon
+                        .frame(width: 14, height: 14)
+                        .foregroundColor(Palette.textTertiary)
                         .frame(width: 28, height: 28)
-                        .background(Circle().fill(Color.black.opacity(0.05)))
+                        .background(Circle().fill(Color.black.opacity(0.04)))
                 }
                 .buttonStyle(.plain)
                 .help("在 GitHub 上查看這個專案")
+            }
+        }
+    }
+
+    // 從 app bundle 讀真正的 GitHub 圖示（灰階 template，可跟著 foregroundColor 上色）
+    var githubIcon: some View {
+        Group {
+            if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
+               let nsImage = NSImage(contentsOfFile: path) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
             }
         }
     }
