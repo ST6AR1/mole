@@ -8,12 +8,12 @@
 
 <img src="icon/icon-source.png" width="160" alt="icon">
 
-<img src="docs/slides/slide-04.png" width="640" alt="Auto Close：開著忘了關？讓它自己收掉">
+<img src="docs/slides/slide-01.png" width="640" alt="Smart Launch 介紹：把資料夾拖進去，它自己判斷、自己啟動">
 
 <p float="left">
-  <img src="docs/slides/slide-01.png" width="220" alt="Smart Launch 介紹">
   <img src="docs/slides/slide-02.png" width="220" alt="為什麼做 Smart Launch">
   <img src="docs/slides/slide-03.png" width="220" alt="核心功能">
+  <img src="docs/slides/slide-04.png" width="220" alt="Auto Close">
   <img src="docs/slides/slide-05.png" width="220" alt="開源資訊">
 </p>
 
