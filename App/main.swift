@@ -8,10 +8,11 @@ import Darwin
 // 曾經造成 SwiftUI 在比較新舊狀態時內部崩潰（AttributeGraph / BodyAccessor 相關的 crash）。
 struct UpdateInfo: Equatable {
     let version: String
-    let url: URL
+    let releasePageURL: URL
+    let dmgURL: URL?
 }
 
-let currentVersion = "1.0.4"
+let currentVersion = "1.0.5"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -27,7 +28,7 @@ func isVersion(_ a: String, newerThan b: String) -> Bool {
 }
 
 // 開啟時問一次 GitHub「最新 release 是哪版」，有更新才回呼；離線或失敗就悄悄放棄，不打擾使用者
-func checkForUpdate(completion: @escaping (String, URL) -> Void) {
+func checkForUpdate(completion: @escaping (UpdateInfo) -> Void) {
     guard let url = URL(string: releasesAPI) else { return }
     var request = URLRequest(url: url)
     request.timeoutInterval = 5
@@ -39,9 +40,20 @@ func checkForUpdate(completion: @escaping (String, URL) -> Void) {
               let releaseURL = URL(string: htmlURLString)
         else { return }
         let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-        if isVersion(latest, newerThan: currentVersion) {
-            completion(latest, releaseURL)
+        guard isVersion(latest, newerThan: currentVersion) else { return }
+
+        var dmgURL: URL?
+        if let assets = json["assets"] as? [[String: Any]] {
+            for asset in assets {
+                if let name = asset["name"] as? String, name.hasSuffix(".dmg"),
+                   let downloadURLString = asset["browser_download_url"] as? String,
+                   let downloadURL = URL(string: downloadURLString) {
+                    dmgURL = downloadURL
+                    break
+                }
+            }
         }
+        completion(UpdateInfo(version: latest, releasePageURL: releaseURL, dmgURL: dmgURL))
     }.resume()
 }
 
@@ -307,6 +319,8 @@ struct ContentView: View {
     @State private var launchStatus: String = ""
     @State private var pollToken = UUID()
     @State private var updateAvailable: UpdateInfo?
+    @State private var isUpdating = false
+    @State private var updateStatus = ""
 
     // 記住哪些 port 設為「保持背景常駐」(跨重啟保留)，以及全域自動過期時間
     @AppStorage("smartlaunch.persistentPorts") private var persistentPortsRaw: String = ""
@@ -361,9 +375,9 @@ struct ContentView: View {
         .background(Palette.windowBg)
         .onAppear(perform: refresh)
         .onAppear {
-            checkForUpdate { version, url in
+            checkForUpdate { info in
                 DispatchQueue.main.async {
-                    updateAvailable = UpdateInfo(version: version, url: url)
+                    updateAvailable = info
                 }
             }
         }
@@ -459,17 +473,152 @@ struct ContentView: View {
 
     func updateBanner(_ update: UpdateInfo) -> some View {
         HStack {
-            Text("🎉 有新版本 v\(update.version) 可下載")
-                .font(.system(size: 12))
-                .foregroundColor(Palette.textPrimary)
-            Spacer()
-            Link("前往查看", destination: update.url)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Palette.updateText)
+            if isUpdating {
+                ProgressView().controlSize(.small)
+                Text(updateStatus.isEmpty ? "正在更新…" : updateStatus)
+                    .font(.system(size: 12))
+                    .foregroundColor(Palette.textPrimary)
+            } else {
+                Text("🎉 有新版本 v\(update.version) 可下載")
+                    .font(.system(size: 12))
+                    .foregroundColor(Palette.textPrimary)
+                Spacer()
+                if update.dmgURL != nil {
+                    Button("立即更新") { performUpdate(update) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Palette.updateText)
+                } else {
+                    Link("前往查看", destination: update.releasePageURL)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Palette.updateText)
+                }
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(RoundedRectangle(cornerRadius: 14).fill(Palette.updateBg))
+    }
+
+    // 下載新版 DMG → 掛載 → 複製到自己現在的路徑蓋過舊版 → 卸載 → 重開新版、結束自己。
+    // 全程在背景執行緒跑；任何一步失敗都優雅降級，改請使用者自己去 Release 頁面下載。
+    func performUpdate(_ update: UpdateInfo) {
+        guard let dmgURL = update.dmgURL else { return }
+        isUpdating = true
+        updateStatus = "正在下載更新…"
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            func fail(_ message: String) {
+                DispatchQueue.main.async {
+                    self.isUpdating = false
+                    self.updateStatus = ""
+                    self.autoExpiredNotice = message
+                }
+            }
+
+            let tmpDir = FileManager.default.temporaryDirectory
+            let dmgPath = tmpDir.appendingPathComponent("SmartLaunch-update-\(UUID().uuidString).dmg")
+
+            let semaphore = DispatchSemaphore(value: 0)
+            var downloadError: String?
+            URLSession.shared.downloadTask(with: dmgURL) { location, _, error in
+                defer { semaphore.signal() }
+                if let error = error {
+                    downloadError = error.localizedDescription
+                    return
+                }
+                guard let location = location else {
+                    downloadError = "下載失敗"
+                    return
+                }
+                do {
+                    try FileManager.default.moveItem(at: location, to: dmgPath)
+                } catch {
+                    downloadError = error.localizedDescription
+                }
+            }.resume()
+            semaphore.wait()
+
+            if let err = downloadError {
+                fail("更新下載失敗：\(err)")
+                return
+            }
+
+            DispatchQueue.main.async { self.updateStatus = "正在安裝…" }
+
+            let mountPoint = tmpDir.appendingPathComponent("SmartLaunchMount-\(UUID().uuidString)").path
+            try? FileManager.default.createDirectory(atPath: mountPoint, withIntermediateDirectories: true)
+
+            let attach = Process()
+            attach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            attach.arguments = ["attach", dmgPath.path, "-nobrowse", "-mountpoint", mountPoint]
+            attach.standardOutput = Pipe()
+            attach.standardError = Pipe()
+            do {
+                try attach.run()
+                attach.waitUntilExit()
+            } catch {
+                fail("掛載更新檔失敗")
+                return
+            }
+
+            func detachDMG() {
+                let detach = Process()
+                detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                detach.arguments = ["detach", mountPoint, "-quiet"]
+                detach.standardOutput = Pipe()
+                detach.standardError = Pipe()
+                try? detach.run()
+                detach.waitUntilExit()
+            }
+
+            let newAppPath = mountPoint + "/SmartLaunch.app"
+            guard FileManager.default.fileExists(atPath: newAppPath) else {
+                detachDMG()
+                fail("更新檔裡找不到 SmartLaunch.app")
+                return
+            }
+
+            DispatchQueue.main.async { self.updateStatus = "正在替換舊版本…" }
+
+            let stagingPath = tmpDir.appendingPathComponent("SmartLaunch-new-\(UUID().uuidString).app").path
+            do {
+                try FileManager.default.copyItem(atPath: newAppPath, toPath: stagingPath)
+            } catch {
+                detachDMG()
+                fail("複製新版本失敗：\(error.localizedDescription)")
+                return
+            }
+            detachDMG()
+
+            let xattrClear = Process()
+            xattrClear.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            xattrClear.arguments = ["-cr", stagingPath]
+            xattrClear.standardOutput = Pipe()
+            xattrClear.standardError = Pipe()
+            try? xattrClear.run()
+            xattrClear.waitUntilExit()
+
+            let currentAppPath = Bundle.main.bundlePath
+            do {
+                try FileManager.default.removeItem(atPath: currentAppPath)
+                try FileManager.default.copyItem(atPath: stagingPath, toPath: currentAppPath)
+            } catch {
+                fail("安裝新版本失敗（可能沒有寫入權限），請自己到 Release 頁面下載安裝：\(error.localizedDescription)")
+                return
+            }
+
+            DispatchQueue.main.async { self.updateStatus = "更新完成，重新啟動中…" }
+
+            let openTask = Process()
+            openTask.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            openTask.arguments = [currentAppPath]
+            try? openTask.run()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     // MARK: Hero — Launch Project
