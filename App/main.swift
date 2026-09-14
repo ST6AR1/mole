@@ -12,7 +12,7 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.6"
+let currentVersion = "1.0.7"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -852,6 +852,8 @@ struct ContentView: View {
                 Link("GitHub @ST6AR1", destination: url)
                     .underline(false)
             }
+            Text("v\(currentVersion)")
+                .padding(.top, 2)
         }
         .font(.system(size: 10))
         .foregroundColor(Palette.textTertiary.opacity(0.7))
