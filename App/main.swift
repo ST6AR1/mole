@@ -73,13 +73,17 @@ struct ExpireOption {
 }
 
 // 自動過期的時間選項（分鐘），0 代表「停用自動過期」
-let expireOptions: [ExpireOption] = [
-    ExpireOption(label: "30 分鐘", minutes: 30),
-    ExpireOption(label: "1 小時", minutes: 60),
-    ExpireOption(label: "2 小時（預設）", minutes: 120),
-    ExpireOption(label: "4 小時", minutes: 240),
-    ExpireOption(label: "停用自動過期", minutes: 0)
-]
+// 用 func 而不是 let：內容要跟著語言切換即時變化，且 t() 依賴的字典要到
+// 檔案後面才初始化，宣告成 func 才能保證真正呼叫時 t() 已經可以用。
+func currentExpireOptions() -> [ExpireOption] {
+    [
+        ExpireOption(label: t("expire.30m"), minutes: 30),
+        ExpireOption(label: t("expire.1h"), minutes: 60),
+        ExpireOption(label: t("expire.2h"), minutes: 120),
+        ExpireOption(label: t("expire.4h"), minutes: 240),
+        ExpireOption(label: t("expire.never"), minutes: 0)
+    ]
+}
 
 let launchLogPath = "/tmp/smartlaunch-latest.log"
 
@@ -294,6 +298,18 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "settings.language": [.zh: "語言", .en: "Language"],
     "settings.github": [.zh: "在 GitHub 上查看", .en: "View on GitHub"],
     "settings.license": [.zh: "MIT 授權", .en: "MIT License"],
+    "alert.stop.confirm": [.zh: "關閉", .en: "Stop"],
+    "alert.cancel": [.zh: "取消", .en: "Cancel"],
+    "alert.stopTitle": [.zh: "關閉 localhost:%@？", .en: "Stop localhost:%@?"],
+    "alert.killAllTitle": [.zh: "全部關閉？", .en: "Stop all?"],
+    "alert.killAllMessage": [.zh: "會關閉 %d 個開發伺服器（localhost:%@)。", .en: "This will stop %d dev server(s) (localhost:%@)."],
+    "alert.killAllSkipped": [.zh: "\n有標記「常駐」的 %d 個服務不會被關閉。", .en: "\n%d pinned service(s) marked Keep Alive won't be stopped."],
+    "pin.tooltip": [.zh: "常駐：不會被自動過期關閉", .en: "Keep Alive: won't be closed automatically"],
+    "expire.30m": [.zh: "30 分鐘", .en: "30 min"],
+    "expire.1h": [.zh: "1 小時", .en: "1 hour"],
+    "expire.2h": [.zh: "2 小時（預設）", .en: "2 hours (default)"],
+    "expire.4h": [.zh: "4 小時", .en: "4 hours"],
+    "expire.never": [.zh: "停用自動過期", .en: "Never"],
 ]
 
 func t(_ key: String) -> String {
@@ -481,42 +497,6 @@ final class PillButton: ClosureButton {
         super.layout()
         layer?.cornerRadius = bounds.height / 2
     }
-}
-
-// Project card 右上角的 ••• more menu 按鈕，取代原本分開的 pin 圖示鈕跟純文字
-// Stop 鈕：常駐用選單裡的打勾狀態表示，Stop 用紅字標成危險動作，跟參考稿一致。
-final class ProjectMenuButton: NSButton {
-    private var moreMenu: NSMenu!
-    var onStop: (() -> Void)?
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-    }
-    convenience init() {
-        self.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        isBordered = false
-        bezelStyle = .inline
-        attributedTitle = NSAttributedString(string: "•••", attributes: [
-            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
-            .foregroundColor: NSColor.plTextTertiary
-        ])
-        target = self
-        action = #selector(showMenu)
-
-        let menu = NSMenu()
-        let stopItem = NSMenuItem(title: "Stop", action: #selector(stopClicked), keyEquivalent: "")
-        stopItem.target = self
-        stopItem.attributedTitle = NSAttributedString(string: "Stop", attributes: [.foregroundColor: NSColor.plDanger])
-        menu.addItem(stopItem)
-        moreMenu = menu
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    @objc private func showMenu() {
-        moreMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height + 4), in: self)
-    }
-    @objc private func stopClicked() { onStop?() }
 }
 
 // 小圓角色塊標籤，對應參考稿的 Badge（框架名稱、process name 這類小標籤）。
@@ -808,13 +788,23 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         textStack.spacing = 3
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
-        let openButton = PillButton(title: "Open", fontSize: 11, onClick: { [weak self] in
+        // Open／Stop 都改成純圖示的圓形按鈕，不用文字——跟 pin 圖示鈕統一視覺語言，
+        // 一整排看起來是一組工具按鈕，而不是文字按鈕跟圖示按鈕混搭。
+        let openButton = ClosureButton(onClick: { [weak self] in
             self?.onOpen?(info.port)
         })
-        openButton.widthAnchor.constraint(equalToConstant: 52).isActive = true
-        openButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        openButton.image = NSImage(systemSymbolName: "arrow.up.right", accessibilityDescription: "Open")
+        openButton.imageScaling = .scaleProportionallyDown
+        openButton.isBordered = false
+        openButton.wantsLayer = true
+        openButton.layer?.backgroundColor = NSColor.plTextPrimary.cgColor
+        openButton.layer?.cornerRadius = 13
+        openButton.contentTintColor = .white
+        openButton.toolTip = "Open"
+        openButton.widthAnchor.constraint(equalToConstant: 26).isActive = true
+        openButton.heightAnchor.constraint(equalToConstant: 26).isActive = true
 
-        // 常駐（Keep Alive）改回一個外露的圖釘圖示鈕，不要藏進 ••• 選單裡——
+        // 常駐（Keep Alive）改回一個外露的圖釘圖示鈕，不要藏進選單裡——
         // 使用者明確說希望常駐這個功能是看得到、按得到的，不是要點兩下選單才找得到。
         let pinButton = ClosureButton(onClick: { [weak self] in
             self?.onTogglePersistent?(info.port)
@@ -823,17 +813,24 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         pinButton.isBordered = false
         pinButton.bezelStyle = .inline
         pinButton.contentTintColor = isPinned ? .plAccent : .plTextTertiary
-        pinButton.toolTip = "常駐：不會被自動過期關閉"
+        pinButton.toolTip = t("pin.tooltip")
         pinButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
         pinButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
-        // ••• 選單只留 Stop 這種比較「危險」、不想讓使用者手滑點到的動作。
-        let menuButton = ProjectMenuButton()
-        menuButton.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        menuButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
-        menuButton.onStop = { [weak self] in self?.onStop?(info) }
+        // Stop 也改成外露的圖示鈕（跟 pin 並排），不用再點開選單才找得到。
+        let stopButton = ClosureButton(onClick: { [weak self] in
+            self?.onStop?(info)
+        })
+        stopButton.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: "Stop")
+        stopButton.imageScaling = .scaleProportionallyDown
+        stopButton.isBordered = false
+        stopButton.bezelStyle = .inline
+        stopButton.contentTintColor = .plDanger
+        stopButton.toolTip = "Stop"
+        stopButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        stopButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
-        let rightStack = NSStackView(views: [pinButton, openButton, menuButton])
+        let rightStack = NSStackView(views: [pinButton, stopButton, openButton])
         rightStack.orientation = .horizontal
         rightStack.alignment = .centerY
         rightStack.spacing = 6
@@ -961,23 +958,13 @@ final class SettingsViewController: NSViewController {
         versionLabel.font = NSFont.systemFont(ofSize: 11)
         versionLabel.textColor = .plTextSecondary
 
-        let githubButton = ClosureButton(onClick: {
-            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
-                NSWorkspace.shared.open(url)
-            }
-        })
-        githubButton.isBordered = false
-        githubButton.bezelStyle = .inline
-        githubButton.attributedTitle = NSAttributedString(string: t("settings.github"), attributes: [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.plBlueFolder
-        ])
+        // 原本主畫面底部的署名，移到這裡——是個人簽名，不跟著語言切換翻譯。
+        let creditLabel = NSTextField(labelWithString: "由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
+        creditLabel.font = NSFont.systemFont(ofSize: 10)
+        creditLabel.textColor = .plTextTertiary
+        creditLabel.alignment = .center
 
-        let licenseLabel = NSTextField(labelWithString: t("settings.license"))
-        licenseLabel.font = NSFont.systemFont(ofSize: 10)
-        licenseLabel.textColor = .plTextTertiary
-
-        let stack = NSStackView(views: [logo, versionLabel, githubButton, licenseLabel])
+        let stack = NSStackView(views: [logo, versionLabel, creditLabel])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 8
@@ -1040,7 +1027,6 @@ final class MainViewController: NSViewController {
     private let runningHeaderHost = NSView()
     private let scrollView = NSScrollView()
     private let tableView = NSTableView()
-    private let footerHost = NSView()
     private let portsTable = PortsTableController()
     private var expirePopup: NSPopUpButton!
 
@@ -1130,13 +1116,11 @@ final class MainViewController: NSViewController {
         scrollView.drawsBackground = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-        footerHost.translatesAutoresizingMaskIntoConstraints = false
-        buildFooter()
-
+        // 原本主畫面底部的署名/GitHub/授權那排 footer 拿掉了，內容併進 Settings
+        // 的「關於」分頁——那裡才是使用者會去找這些資訊的地方，主畫面不需要。
         view.addSubview(toolbarHost)
         view.addSubview(topStack)
         view.addSubview(scrollView)
-        view.addSubview(footerHost)
 
         NSLayoutConstraint.activate([
             toolbarHost.topAnchor.constraint(equalTo: view.topAnchor),
@@ -1150,11 +1134,7 @@ final class MainViewController: NSViewController {
             scrollView.topAnchor.constraint(equalTo: topStack.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            scrollView.bottomAnchor.constraint(equalTo: footerHost.topAnchor, constant: -4),
-
-            footerHost.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            footerHost.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            footerHost.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14)
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16)
         ])
 
         rebuildUpdateBanner()
@@ -1173,8 +1153,8 @@ final class MainViewController: NSViewController {
         titleImage.translatesAutoresizingMaskIntoConstraints = false
         if let logo = moleImage("wordmark-logo") {
             let aspect = logo.size.width / logo.size.height
-            titleImage.heightAnchor.constraint(equalToConstant: 22).isActive = true
-            titleImage.widthAnchor.constraint(equalToConstant: 22 * aspect).isActive = true
+            titleImage.heightAnchor.constraint(equalToConstant: 34).isActive = true
+            titleImage.widthAnchor.constraint(equalToConstant: 34 * aspect).isActive = true
         }
 
         let tagline = NSTextField(labelWithString: t("tagline"))
@@ -1208,16 +1188,17 @@ final class MainViewController: NSViewController {
 
     // MARK: Settings
 
+    // 每次打開都重建，不快取視窗——不然語言切換後，Tab 標題、視窗標題這些在
+    // viewDidLoad 當下就寫死文字的地方，下次打開還是會停在切換前的語言。
     private func showSettings() {
-        if settingsWindow == nil {
-            let vc = SettingsViewController()
-            vc.onLanguageChanged = { [weak self] in self?.applyLanguageChange() }
-            let win = NSWindow(contentViewController: vc)
-            win.styleMask = [.titled, .closable]
-            win.title = t("settings.title")
-            win.isReleasedWhenClosed = false
-            settingsWindow = win
-        }
+        settingsWindow?.close()
+        let vc = SettingsViewController()
+        vc.onLanguageChanged = { [weak self] in self?.applyLanguageChange() }
+        let win = NSWindow(contentViewController: vc)
+        win.styleMask = [.titled, .closable]
+        win.title = t("settings.title")
+        win.isReleasedWhenClosed = false
+        settingsWindow = win
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -1229,6 +1210,7 @@ final class MainViewController: NSViewController {
         rebuildHeroCard()
         rebuildAutoClose()
         rebuildRunningHeader()
+        syncPortsTable()
     }
 
     // MARK: Update banner
@@ -1465,7 +1447,7 @@ final class MainViewController: NSViewController {
             dropZone.trailingAnchor.constraint(equalTo: heroCardHost.trailingAnchor),
             dropZone.topAnchor.constraint(equalTo: heroCardHost.topAnchor),
             dropZone.bottomAnchor.constraint(equalTo: heroCardHost.bottomAnchor),
-            dropZone.heightAnchor.constraint(equalToConstant: isLaunching ? 200 : 224)
+            dropZone.heightAnchor.constraint(equalToConstant: isLaunching ? 250 : 224)
         ])
 
         let contentStack = NSStackView()
@@ -1484,8 +1466,8 @@ final class MainViewController: NSViewController {
         if isLaunching {
             let digAnim = MoleDigAnimationView(frame: .zero)
             digAnim.translatesAutoresizingMaskIntoConstraints = false
-            digAnim.widthAnchor.constraint(equalToConstant: 96).isActive = true
-            digAnim.heightAnchor.constraint(equalToConstant: 80).isActive = true
+            digAnim.widthAnchor.constraint(equalToConstant: 84).isActive = true
+            digAnim.heightAnchor.constraint(equalToConstant: 68).isActive = true
             digAnim.startAnimating()
 
             let doodle = NSTextField(labelWithString: t("launch.doodle"))
@@ -1641,10 +1623,10 @@ final class MainViewController: NSViewController {
         let popup = NSPopUpButton(frame: .zero, pullsDown: false)
         popup.font = NSFont.systemFont(ofSize: 11, weight: .medium)
         popup.bezelStyle = .rounded
-        for opt in expireOptions {
+        for opt in currentExpireOptions() {
             popup.addItem(withTitle: opt.label)
         }
-        if let idx = expireOptions.firstIndex(where: { $0.minutes == expireMinutes }) {
+        if let idx = currentExpireOptions().firstIndex(where: { $0.minutes == expireMinutes }) {
             popup.selectItem(at: idx)
         }
         popup.target = self
@@ -1685,8 +1667,9 @@ final class MainViewController: NSViewController {
 
     @objc private func expirePopupChanged(_ sender: NSPopUpButton) {
         let idx = sender.indexOfSelectedItem
-        guard idx >= 0 && idx < expireOptions.count else { return }
-        expireMinutes = expireOptions[idx].minutes
+        let options = currentExpireOptions()
+        guard idx >= 0 && idx < options.count else { return }
+        expireMinutes = options[idx].minutes
     }
 
     // MARK: Running Projects header
@@ -1739,45 +1722,6 @@ final class MainViewController: NSViewController {
 
     // MARK: Footer
 
-    private func buildFooter() {
-        let line1 = NSTextField(labelWithString: "由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
-        let githubLink = ClosureButton(onClick: {
-            if let url = URL(string: "https://github.com/ST6AR1") {
-                NSWorkspace.shared.open(url)
-            }
-        })
-        githubLink.isBordered = false
-        githubLink.bezelStyle = .inline
-        githubLink.attributedTitle = NSAttributedString(string: "GitHub @ST6AR1")
-        let versionLabel = NSTextField(labelWithString: "v\(currentVersion)")
-
-        for field in [line1, versionLabel] {
-            field.font = NSFont.systemFont(ofSize: 10)
-            field.textColor = .plTextTertiary.withAlphaComponent(0.7)
-            field.alignment = .center
-        }
-        githubLink.attributedTitle = NSAttributedString(
-            string: "GitHub @ST6AR1",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 10),
-                .foregroundColor: NSColor.plTextTertiary.withAlphaComponent(0.7)
-            ]
-        )
-
-        let stack = NSStackView(views: [line1, githubLink, versionLabel])
-        stack.orientation = .vertical
-        stack.alignment = .centerX
-        stack.spacing = 2
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        footerHost.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: footerHost.centerXAnchor),
-            stack.topAnchor.constraint(equalTo: footerHost.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: footerHost.bottomAnchor)
-        ])
-    }
-
     // MARK: Actions
 
     private func openBrowser(port: String) {
@@ -1796,10 +1740,10 @@ final class MainViewController: NSViewController {
 
     private func confirmStop(_ info: PortInfo) {
         let alert = NSAlert()
-        alert.messageText = "關閉 localhost:\(info.port)？"
+        alert.messageText = String(format: t("alert.stopTitle"), info.port)
         alert.informativeText = "\(info.processName) · PID \(info.pid)\n\(info.command)"
-        alert.addButton(withTitle: "關閉")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: t("alert.stop.confirm"))
+        alert.addButton(withTitle: t("alert.cancel"))
         alert.buttons.first?.hasDestructiveAction = true
         guard let window = view.window else { return }
         alert.beginSheetModal(for: window) { [weak self] response in
@@ -1812,15 +1756,15 @@ final class MainViewController: NSViewController {
     private func confirmKillAll() {
         let toKill = devPorts.filter { !isPersistent($0.port) }
         let skipped = devPorts.count - toKill.count
-        var msg = "會關閉 \(toKill.count) 個開發伺服器（localhost:\(toKill.map { $0.port }.joined(separator: ", localhost:")))。"
+        var msg = String(format: t("alert.killAllMessage"), toKill.count, toKill.map { $0.port }.joined(separator: ", localhost:"))
         if skipped > 0 {
-            msg += "\n有標記「常駐」的 \(skipped) 個服務不會被關閉。"
+            msg += String(format: t("alert.killAllSkipped"), skipped)
         }
         let alert = NSAlert()
-        alert.messageText = "全部關閉？"
+        alert.messageText = t("alert.killAllTitle")
         alert.informativeText = msg
-        alert.addButton(withTitle: "全部關閉")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: t("running.killAll"))
+        alert.addButton(withTitle: t("alert.cancel"))
         alert.buttons.first?.hasDestructiveAction = true
         guard let window = view.window else { return }
         alert.beginSheetModal(for: window) { [weak self] response in
@@ -2019,10 +1963,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         win.isRestorable = false
         win.setFrameAutosaveName("")
         win.isReleasedWhenClosed = false
-        win.minSize = NSSize(width: 480, height: 620)
+        win.minSize = NSSize(width: 560, height: 620)
 
         let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: 480, height: 680)
+        let size = NSSize(width: 600, height: 680)
         let origin = NSPoint(
             x: screenFrame.midX - size.width / 2,
             y: screenFrame.midY - size.height / 2
