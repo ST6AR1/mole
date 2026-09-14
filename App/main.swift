@@ -54,6 +54,45 @@ func checkForUpdate(completion: @escaping (UpdateInfo) -> Void) {
     }.resume()
 }
 
+// 對「不是我們自己啟動」的服務，試著抓它自己網頁的 <title> 跟 favicon，
+// 卡片才能顯示真正的網站名稱/圖示，而不是只有一個 process 名稱。
+// 兩個請求都給很短的逾時時間——這只是錦上添花，不能讓它拖慢畫面刷新。
+func fetchSiteInfo(port: String, completion: @escaping (String?, NSImage?) -> Void) {
+    guard let pageURL = URL(string: "http://localhost:\(port)/") else {
+        completion(nil, nil)
+        return
+    }
+    var request = URLRequest(url: pageURL)
+    request.timeoutInterval = 1.5
+    URLSession.shared.dataTask(with: request) { data, _, _ in
+        var title: String?
+        if let data = data, let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+            if let range = html.range(of: "<title>", options: .caseInsensitive),
+               let endRange = html.range(of: "</title>", options: .caseInsensitive, range: range.upperBound..<html.endIndex) {
+                let raw = html[range.upperBound..<endRange.lowerBound]
+                let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleaned.isEmpty && cleaned.count < 80 { title = cleaned }
+            }
+        }
+
+        guard let faviconURL = URL(string: "http://localhost:\(port)/favicon.ico") else {
+            completion(title, nil)
+            return
+        }
+        var faviconRequest = URLRequest(url: faviconURL)
+        faviconRequest.timeoutInterval = 1.5
+        URLSession.shared.dataTask(with: faviconRequest) { favData, response, _ in
+            var icon: NSImage?
+            if let favData = favData, favData.count > 32,
+               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let image = NSImage(data: favData) {
+                icon = image
+            }
+            DispatchQueue.main.async { completion(title, icon) }
+        }.resume()
+    }.resume()
+}
+
 // MARK: - Model
 
 struct PortInfo: Equatable {
@@ -288,9 +327,9 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "launch.doodle": [.zh: "digging⋯", .en: "digging⋯"],
     "launch.cancel": [.zh: "先不等了", .en: "Never mind"],
     "empty.title": [.zh: "目前沒有專案在跑", .en: "Nothing running right now"],
-    "autoclose.title": [.zh: "Auto Close", .en: "Auto Close"],
+    "autoclose.title": [.zh: "自動關閉", .en: "Auto Close"],
     "autoclose.subtitle": [.zh: "閒置專案將自動關閉", .en: "Idle projects will close automatically"],
-    "running.title": [.zh: "Running Projects", .en: "Running Projects"],
+    "running.title": [.zh: "執行中的專案", .en: "Running Projects"],
     "running.killAll": [.zh: "全部關閉", .en: "Stop All"],
     "settings.title": [.zh: "設定", .en: "Settings"],
     "settings.general": [.zh: "一般", .en: "General"],
@@ -305,6 +344,7 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "alert.killAllMessage": [.zh: "會關閉 %d 個開發伺服器（localhost:%@)。", .en: "This will stop %d dev server(s) (localhost:%@)."],
     "alert.killAllSkipped": [.zh: "\n有標記「常駐」的 %d 個服務不會被關閉。", .en: "\n%d pinned service(s) marked Keep Alive won't be stopped."],
     "pin.tooltip": [.zh: "常駐：不會被自動過期關閉", .en: "Keep Alive: won't be closed automatically"],
+    "project.pinned": [.zh: "常駐中", .en: "pinned"],
     "expire.30m": [.zh: "30 分鐘", .en: "30 min"],
     "expire.1h": [.zh: "1 小時", .en: "1 hour"],
     "expire.2h": [.zh: "2 小時（預設）", .en: "2 hours (default)"],
@@ -370,6 +410,35 @@ class ClosureButton: NSButton {
     }
 
     @objc private func handleClick() { onClick?() }
+}
+
+// 讓一整塊區域（標題、資料夾圖示、網址……）都能點擊觸發同一個動作，取代
+// 原本只有一顆小小的 Open 按鈕才能點。故意繼承 NSButton 而不是用純 NSView
+// 覆寫 mouseUp——NSTableView 的列本身會攔截 mouseDown 做選取處理，一般
+// NSView 收不到點擊，只有真正的 NSControl／NSButton 才能可靠地在表格列
+// 裡吃到點擊（跟已經驗證過會動的 pin/stop 圖示鈕是同一套機制）。
+final class ClickableRegionView: NSButton {
+    private var onClick: (() -> Void)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        isBordered = false
+        bezelStyle = .inline
+        title = ""
+        target = self
+        action = #selector(handleClick)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func setOnClick(_ handler: @escaping () -> Void) {
+        onClick = handler
+    }
+
+    @objc private func handleClick() { onClick?() }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
 }
 
 // 拖曳資料夾進來的區域：純 AppKit 的 NSDraggingDestination 實作，
@@ -631,6 +700,8 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     var devPorts: [PortInfo] = []
     var persistentPorts: Set<String> = []
     var projectNames: [String: String] = [:]
+    var siteTitles: [String: String] = [:]
+    var siteFavicons: [String: NSImage] = [:]
 
     var onOpen: ((String) -> Void)?
     var onTogglePersistent: ((String) -> Void)?
@@ -723,23 +794,32 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -4)
         ])
 
-        // 資料夾圖示色塊，取代原本沒有任何識別物的純文字列。
+        // 資料夾圖示色塊，取代原本沒有任何識別物的純文字列；如果這個服務不是
+        // 我們啟動的、但抓得到它自己網頁的 favicon，就直接顯示那個 favicon，
+        // 比一個泛用的資料夾圖示更能讓人一眼認出「這是哪個網站」。
         let folderChip = RoundedCardView(cornerRadius: 9, fill: .plBlueFolderLight)
-        let folderIcon = NSImageView(image: NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil) ?? NSImage())
-        folderIcon.contentTintColor = .plBlueFolder
-        folderIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        let favicon = siteFavicons[info.port]
+        let folderIcon = NSImageView(image: favicon ?? NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil) ?? NSImage())
+        if favicon == nil {
+            folderIcon.contentTintColor = .plBlueFolder
+            folderIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        }
+        folderIcon.imageScaling = .scaleProportionallyUpOrDown
         folderIcon.translatesAutoresizingMaskIntoConstraints = false
         folderChip.addSubview(folderIcon)
+        let iconSize: CGFloat = favicon == nil ? 18 : 22
         NSLayoutConstraint.activate([
             folderChip.widthAnchor.constraint(equalToConstant: 34),
             folderChip.heightAnchor.constraint(equalToConstant: 34),
+            folderIcon.widthAnchor.constraint(equalToConstant: iconSize),
+            folderIcon.heightAnchor.constraint(equalToConstant: iconSize),
             folderIcon.centerXAnchor.constraint(equalTo: folderChip.centerXAnchor),
             folderIcon.centerYAnchor.constraint(equalTo: folderChip.centerYAnchor)
         ])
 
         // 名稱優先顯示我們自己啟動時記住的專案（資料夾）名稱；不是我們啟動的
-        // （例如開 App 前就在跑的服務）就退回顯示 process 名稱。
-        let displayName = projectNames[info.port] ?? info.processName
+        // 就試著用抓到的網頁 <title>，再不然才退回顯示 process 名稱。
+        let displayName = projectNames[info.port] ?? siteTitles[info.port] ?? info.processName
         let isPinned = persistentPorts.contains(info.port)
 
         let nameLabel = NSTextField(labelWithString: displayName)
@@ -749,7 +829,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
         var nameRowViews: [NSView] = [nameLabel]
         if isPinned {
-            nameRowViews.append(makeBadge("pinned", bg: NSColor.plBorder.withAlphaComponent(0.5), fg: .plTextSecondary))
+            nameRowViews.append(makeBadge(t("project.pinned"), bg: NSColor.plBorder.withAlphaComponent(0.5), fg: .plTextSecondary))
         }
         let nameRow = NSStackView(views: nameRowViews)
         nameRow.orientation = .horizontal
@@ -788,28 +868,12 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         textStack.spacing = 3
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
-        // Open／Stop 都改成純圖示的圓形按鈕，不用文字——跟 pin 圖示鈕統一視覺語言，
-        // 一整排看起來是一組工具按鈕，而不是文字按鈕跟圖示按鈕混搭。
-        let openButton = ClosureButton(onClick: { [weak self] in
-            self?.onOpen?(info.port)
-        })
-        openButton.image = NSImage(systemSymbolName: "arrow.up.right", accessibilityDescription: "Open")
-        openButton.imageScaling = .scaleProportionallyDown
-        openButton.isBordered = false
-        openButton.wantsLayer = true
-        openButton.layer?.backgroundColor = NSColor.plTextPrimary.cgColor
-        openButton.layer?.cornerRadius = 13
-        openButton.contentTintColor = .white
-        openButton.toolTip = "Open"
-        openButton.widthAnchor.constraint(equalToConstant: 26).isActive = true
-        openButton.heightAnchor.constraint(equalToConstant: 26).isActive = true
-
-        // 常駐（Keep Alive）改回一個外露的圖釘圖示鈕，不要藏進選單裡——
+        // 常駐（Keep Alive）改回一個外露的星星圖示鈕，不要藏進選單裡——
         // 使用者明確說希望常駐這個功能是看得到、按得到的，不是要點兩下選單才找得到。
         let pinButton = ClosureButton(onClick: { [weak self] in
             self?.onTogglePersistent?(info.port)
         })
-        pinButton.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: "常駐")
+        pinButton.image = NSImage(systemSymbolName: isPinned ? "star.fill" : "star", accessibilityDescription: "常駐")
         pinButton.isBordered = false
         pinButton.bezelStyle = .inline
         pinButton.contentTintColor = isPinned ? .plAccent : .plTextTertiary
@@ -817,11 +881,11 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         pinButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
         pinButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
-        // Stop 也改成外露的圖示鈕（跟 pin 並排），不用再點開選單才找得到。
+        // Stop 也是外露的圖示鈕（跟 pin 並排），不用再點開選單才找得到。
         let stopButton = ClosureButton(onClick: { [weak self] in
             self?.onStop?(info)
         })
-        stopButton.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: "Stop")
+        stopButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Stop")
         stopButton.imageScaling = .scaleProportionallyDown
         stopButton.isBordered = false
         stopButton.bezelStyle = .inline
@@ -830,25 +894,37 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         stopButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
         stopButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
-        let rightStack = NSStackView(views: [pinButton, stopButton, openButton])
+        let rightStack = NSStackView(views: [pinButton, stopButton])
         rightStack.orientation = .horizontal
         rightStack.alignment = .centerY
         rightStack.spacing = 6
         rightStack.translatesAutoresizingMaskIntoConstraints = false
 
-        card.addSubview(folderChip)
-        card.addSubview(textStack)
+        // 拿掉單獨的 Open 按鈕，改成整個左側區域（圖示、標題、網址）都能點擊
+        // 開瀏覽器——按鈕還是比純文字好按，但沒必要非得瞄準一顆小按鈕不可。
+        let clickRegion = ClickableRegionView()
+        clickRegion.setOnClick { [weak self] in self?.onOpen?(info.port) }
+        clickRegion.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(clickRegion)
+        clickRegion.addSubview(folderChip)
+        clickRegion.addSubview(textStack)
         card.addSubview(rightStack)
         NSLayoutConstraint.activate([
-            folderChip.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
-            folderChip.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            clickRegion.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            clickRegion.topAnchor.constraint(equalTo: card.topAnchor),
+            clickRegion.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            clickRegion.trailingAnchor.constraint(equalTo: rightStack.leadingAnchor, constant: -4),
+
+            folderChip.leadingAnchor.constraint(equalTo: clickRegion.leadingAnchor, constant: 12),
+            folderChip.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
 
             textStack.leadingAnchor.constraint(equalTo: folderChip.trailingAnchor, constant: 10),
-            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            textStack.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
+            textStack.trailingAnchor.constraint(lessThanOrEqualTo: clickRegion.trailingAnchor),
 
-            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
-            rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            textStack.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8)
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
 
         // 只在第一張卡片右下角探頭一隻小鼴鼠，其餘卡片保持乾淨——
@@ -990,6 +1066,12 @@ final class MainViewController: NSViewController {
     // Projects 卡片能顯示真正的專案名稱而不是只有 process 名稱；重開 App 前就啟動
     // 好、我們沒參與偵測的 port 沒有這筆資料，卡片會退回顯示 process 名稱。
     private var launchedProjectNames: [String: String] = [:]
+    // 對於不是我們自己啟動的服務（例如開 App 前就在跑的），試著把它自己
+    // 網頁的 <title> 跟 favicon 抓回來，卡片才不會全部都只顯示乾巴巴的 "node"。
+    // 一個 port 只抓一次，抓過（不管成功失敗）就不會重試，避免每次 refresh 都打。
+    private var fetchedSiteTitles: [String: String] = [:]
+    private var fetchedFavicons: [String: NSImage] = [:]
+    private var siteInfoFetchAttempted: Set<String> = []
     private var autoExpiredNotice = ""
     private var isLaunching = false
     private var launchStatus = ""
@@ -1153,8 +1235,8 @@ final class MainViewController: NSViewController {
         titleImage.translatesAutoresizingMaskIntoConstraints = false
         if let logo = moleImage("wordmark-logo") {
             let aspect = logo.size.width / logo.size.height
-            titleImage.heightAnchor.constraint(equalToConstant: 34).isActive = true
-            titleImage.widthAnchor.constraint(equalToConstant: 34 * aspect).isActive = true
+            titleImage.heightAnchor.constraint(equalToConstant: 46).isActive = true
+            titleImage.widthAnchor.constraint(equalToConstant: 46 * aspect).isActive = true
         }
 
         let tagline = NSTextField(labelWithString: t("tagline"))
@@ -1819,6 +1901,8 @@ final class MainViewController: NSViewController {
         portsTable.devPorts = devPorts
         portsTable.persistentPorts = persistentPorts
         portsTable.projectNames = launchedProjectNames
+        portsTable.siteTitles = fetchedSiteTitles
+        portsTable.siteFavicons = fetchedFavicons
         portsTable.reload()
     }
 
@@ -1834,6 +1918,26 @@ final class MainViewController: NSViewController {
                 self.isRefreshing = false
                 self.syncPortsTable()
                 self.rebuildRunningHeader()
+                self.fetchMissingSiteInfo(fetched)
+            }
+        }
+    }
+
+    // 只對「不是我們自己啟動、也還沒抓過」的 dev port 才去要 title/favicon，
+    // 每個 port 一輩子只試一次，不會每次 8 秒刷新就重打一輪。
+    private func fetchMissingSiteInfo(_ fetched: [PortInfo]) {
+        for info in fetched where info.isDev {
+            guard launchedProjectNames[info.port] == nil else { continue }
+            guard !siteInfoFetchAttempted.contains(info.port) else { continue }
+            siteInfoFetchAttempted.insert(info.port)
+            let port = info.port
+            fetchSiteInfo(port: port) { [weak self] title, icon in
+                guard let self = self else { return }
+                if let title = title { self.fetchedSiteTitles[port] = title }
+                if let icon = icon { self.fetchedFavicons[port] = icon }
+                if title != nil || icon != nil {
+                    self.syncPortsTable()
+                }
             }
         }
     }
