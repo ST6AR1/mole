@@ -12,7 +12,7 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.5"
+let currentVersion = "1.0.6"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -70,13 +70,21 @@ struct PortInfo: Identifiable, Equatable {
     let uptimeSeconds: Int
 }
 
+// tuple 陣列在 ForEach 裡被 SwiftUI/AttributeGraph 比較新舊值時，在這個 macOS 版本上
+// 會直接崩潰（EXC_BAD_ACCESS in Array<A>.==）。跟 UpdateInfo 那次是同一類問題，
+// 這次影響範圍更大：Auto Close 這個選單在 App 一開啟就會渲染，所以是「一開就閃退」。
+struct ExpireOption: Equatable {
+    let label: String
+    let minutes: Int
+}
+
 // 自動過期的時間選項（分鐘），0 代表「停用自動過期」
-let expireOptions: [(label: String, minutes: Int)] = [
-    ("30 分鐘", 30),
-    ("1 小時", 60),
-    ("2 小時（預設）", 120),
-    ("4 小時", 240),
-    ("停用自動過期", 0)
+let expireOptions: [ExpireOption] = [
+    ExpireOption(label: "30 分鐘", minutes: 30),
+    ExpireOption(label: "1 小時", minutes: 60),
+    ExpireOption(label: "2 小時（預設）", minutes: 120),
+    ExpireOption(label: "4 小時", minutes: 240),
+    ExpireOption(label: "停用自動過期", minutes: 0)
 ]
 
 let launchLogPath = "/tmp/smartlaunch-latest.log"
