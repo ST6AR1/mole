@@ -244,21 +244,38 @@ func shortUptime(_ totalSeconds: Int) -> String {
     return "< 1 min"
 }
 
+// 鼴鼠插畫是手動放進 app bundle Resources 的 PNG，沒有走 asset catalog，
+// 所以不能用 NSImage(named:)，要自己從 bundle 路徑載入。載入一次快取起來即可。
+private var moleImageCache: [String: NSImage] = [:]
+func moleImage(_ name: String) -> NSImage? {
+    if let cached = moleImageCache[name] { return cached }
+    guard let path = Bundle.main.path(forResource: name, ofType: "png"),
+          let image = NSImage(contentsOfFile: path) else { return nil }
+    moleImageCache[name] = image
+    return image
+}
+
 // MARK: - Design tokens
 
+// 可愛版色票，直接對應 Figma 參考稿（mole-ui-spec）裡的 --color-* token，
+// 保留原本 warm off-white 的基調，只是把飽和度、對比都調得更軟一點。
 extension NSColor {
-    static let plWindowBg = NSColor(calibratedRed: 0.953, green: 0.949, blue: 0.937, alpha: 1)
-    static let plHeroBg = NSColor(calibratedRed: 0.992, green: 0.992, blue: 0.984, alpha: 1)
-    static let plRowBg = NSColor(calibratedRed: 0.973, green: 0.969, blue: 0.953, alpha: 1)
-    static let plRowBgMuted = NSColor(calibratedRed: 0.961, green: 0.957, blue: 0.941, alpha: 1)
-    static let plTextPrimary = NSColor(calibratedRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
-    static let plTextSecondary = NSColor(calibratedRed: 0.557, green: 0.557, blue: 0.576, alpha: 1)
-    static let plTextTertiary = NSColor(calibratedRed: 0.690, green: 0.686, blue: 0.675, alpha: 1)
-    static let plDanger = NSColor(calibratedRed: 0.753, green: 0.224, blue: 0.169, alpha: 1)
-    static let plLocalhostText = NSColor(calibratedRed: 0.227, green: 0.227, blue: 0.235, alpha: 1)
-    static let plUpdateBg = NSColor(calibratedRed: 0.933, green: 0.945, blue: 0.965, alpha: 1)
-    static let plUpdateText = NSColor(calibratedRed: 0.227, green: 0.353, blue: 0.549, alpha: 1)
-    static let plPrimaryButtonBg = NSColor(calibratedRed: 0.941, green: 0.937, blue: 0.925, alpha: 1)
+    static let plWindowBg = NSColor(calibratedRed: 0.969, green: 0.957, blue: 0.941, alpha: 1)     // #f7f4f0 bg
+    static let plHeroBg = NSColor(calibratedRed: 0.992, green: 0.988, blue: 0.984, alpha: 1)        // #fdfcfb surface
+    static let plRowBg = NSColor(calibratedRed: 1.0, green: 1.0, blue: 1.0, alpha: 1)               // #ffffff card
+    static let plRowBgMuted = NSColor(calibratedRed: 0.953, green: 0.937, blue: 0.914, alpha: 1)    // muted warm card
+    static let plTextPrimary = NSColor(calibratedRed: 0.110, green: 0.090, blue: 0.090, alpha: 1)   // #1c1917
+    static let plTextSecondary = NSColor(calibratedRed: 0.471, green: 0.443, blue: 0.424, alpha: 1) // #78716c
+    static let plTextTertiary = NSColor(calibratedRed: 0.659, green: 0.635, blue: 0.620, alpha: 1)  // #a8a29e
+    static let plDanger = NSColor(calibratedRed: 0.878, green: 0.439, blue: 0.439, alpha: 1)        // #e07070
+    static let plLocalhostText = NSColor(calibratedRed: 0.263, green: 0.373, blue: 0.463, alpha: 1) // darker blue-folder
+    static let plUpdateBg = NSColor(calibratedRed: 0.996, green: 0.976, blue: 0.816, alpha: 1)      // #fef9d0 accent-light
+    static let plUpdateText = NSColor(calibratedRed: 0.545, green: 0.427, blue: 0.031, alpha: 1)    // dark butter
+    static let plPrimaryButtonBg = NSColor(calibratedRed: 0.996, green: 0.976, blue: 0.816, alpha: 1) // #fef9d0
+    static let plBorder = NSColor(calibratedRed: 0.910, green: 0.886, blue: 0.855, alpha: 1)        // #e8e2da
+    static let plAccent = NSColor(calibratedRed: 0.961, green: 0.835, blue: 0.278, alpha: 1)        // #f5d547 butter yellow
+    static let plBlueFolder = NSColor(calibratedRed: 0.569, green: 0.706, blue: 0.831, alpha: 1)    // #91b4d4
+    static let plBlueFolderLight = NSColor(calibratedRed: 0.855, green: 0.918, blue: 0.969, alpha: 1) // #daeaf7
 }
 
 // MARK: - Small reusable AppKit helpers
@@ -301,20 +318,38 @@ final class DropZoneView: NSView {
     private var isHovering = false {
         didSet { updateBorder() }
     }
+    private let dashLayer = CAShapeLayer()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         layer?.cornerRadius = 30
         layer?.backgroundColor = NSColor.plHeroBg.cgColor
+
+        // 平常就有一圈很淡的虛線邊框（spec 裡的 dashed border），拖曳懸浮時才變成
+        // 實線的 blue-folder 強調色，讓使用者一眼知道「這裡可以放」。
+        dashLayer.fillColor = nil
+        dashLayer.strokeColor = NSColor.plBorder.cgColor
+        dashLayer.lineWidth = 1.5
+        dashLayer.lineDashPattern = [6, 5]
+        layer?.addSublayer(dashLayer)
+
         registerForDraggedTypes([.fileURL])
         updateBorder()
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    override func layout() {
+        super.layout()
+        let inset: CGFloat = 1
+        dashLayer.frame = bounds
+        dashLayer.path = CGPath(roundedRect: bounds.insetBy(dx: inset, dy: inset), cornerWidth: 30 - inset, cornerHeight: 30 - inset, transform: nil)
+    }
+
     private func updateBorder() {
         layer?.borderWidth = isHovering ? 2 : 0
-        layer?.borderColor = NSColor.systemBlue.withAlphaComponent(0.5).cgColor
+        layer?.borderColor = NSColor.plBlueFolder.cgColor
+        dashLayer.isHidden = isHovering
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -336,6 +371,38 @@ final class DropZoneView: NSView {
     }
 }
 
+// 偵測/啟動中顯示的鼴鼠挖土動畫：一組 6 張手繪序列格，用 Timer 輪播模擬 GIF。
+final class MoleDigAnimationView: NSImageView {
+    private var frames: [NSImage] = []
+    private var frameIndex = 0
+    private var timer: Timer?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        frames = (0...5).compactMap { moleImage("dig-anim-\($0)") }
+        imageScaling = .scaleProportionallyUpOrDown
+        if let first = frames.first { image = first }
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func startAnimating() {
+        stopAnimating()
+        guard !frames.isEmpty else { return }
+        let t = Timer(timeInterval: 0.18, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.frameIndex = (self.frameIndex + 1) % self.frames.count
+            self.image = self.frames[self.frameIndex]
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+    func stopAnimating() {
+        timer?.invalidate()
+        timer = nil
+    }
+    deinit { timer?.invalidate() }
+}
+
 // 主要操作按鈕（選擇資料夾）的 soft filled 外觀
 final class SoftFilledButton: ClosureButton {
     override init(frame: NSRect) {
@@ -347,6 +414,8 @@ final class SoftFilledButton: ClosureButton {
         wantsLayer = true
         layer?.cornerRadius = 14
         layer?.backgroundColor = NSColor.plPrimaryButtonBg.cgColor
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor.plAccent.withAlphaComponent(0.5).cgColor
         attributedTitle = NSAttributedString(string: title, attributes: [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: NSColor.plTextPrimary
@@ -409,7 +478,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         switch rows[row] {
-        case .empty: return 72
+        case .empty: return 130
         case .project: return 80
         case .othersHeader: return 32
         case .other: return 40
@@ -421,7 +490,8 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         case .empty:
             return makeEmptyRow()
         case .project(let info):
-            return makeProjectRow(info)
+            let isFirst = !rows[0..<row].contains { if case .project = $0 { return true } else { return false } }
+            return makeProjectRow(info, showMascot: isFirst)
         case .othersHeader(let count):
             return makeOthersHeaderRow(count)
         case .other(let info):
@@ -431,23 +501,40 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
     private func makeEmptyRow() -> NSView {
         let wrapper = NSView()
+
+        let mound = NSImageView(image: moleImage("mound") ?? NSImage())
+        mound.imageScaling = .scaleProportionallyUpOrDown
+        mound.translatesAutoresizingMaskIntoConstraints = false
+        mound.widthAnchor.constraint(equalToConstant: 92).isActive = true
+        mound.heightAnchor.constraint(equalToConstant: 70).isActive = true
+
         let label = NSTextField(labelWithString: "目前沒有專案在跑")
         label.font = NSFont.systemFont(ofSize: 12)
         label.textColor = .plTextTertiary
         label.alignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        wrapper.addSubview(label)
+
+        let zzz = NSTextField(labelWithString: "zzz⋯")
+        zzz.font = NSFont(name: "Noteworthy", size: 13) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
+        zzz.textColor = .plTextTertiary.withAlphaComponent(0.8)
+        zzz.alignment = .center
+
+        let stack = NSStackView(views: [mound, label, zzz])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 4
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        wrapper.addSubview(stack)
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor)
+            stack.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor)
         ])
         return wrapper
     }
 
-    private func makeProjectRow(_ info: PortInfo) -> NSView {
+    private func makeProjectRow(_ info: PortInfo, showMascot: Bool) -> NSView {
         let wrapper = NSView()
 
-        let card = RoundedCardView(cornerRadius: 20, fill: .plRowBg, borderColor: NSColor.black.withAlphaComponent(0.04))
+        let card = RoundedCardView(cornerRadius: 20, fill: .plRowBg, borderColor: .plBorder)
         wrapper.addSubview(card)
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
@@ -523,6 +610,21 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             textStack.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8)
         ])
+
+        // 只在第一張卡片右下角探頭一隻小鼴鼠，其餘卡片保持乾淨——
+        // spec 裡特別提醒「不需要每一張 Card 都很大，不要造成資訊閱讀干擾」。
+        if showMascot, let mascotImage = moleImage("peek-small") {
+            let mascot = NSImageView(image: mascotImage)
+            mascot.imageScaling = .scaleProportionallyUpOrDown
+            mascot.translatesAutoresizingMaskIntoConstraints = false
+            wrapper.addSubview(mascot)
+            NSLayoutConstraint.activate([
+                mascot.widthAnchor.constraint(equalToConstant: 34),
+                mascot.heightAnchor.constraint(equalToConstant: 26),
+                mascot.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+                mascot.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: 4)
+            ])
+        }
 
         return wrapper
     }
@@ -740,15 +842,21 @@ final class MainViewController: NSViewController {
     }
 
     private func buildHeader() -> NSView {
-        let title = NSTextField(labelWithString: "Smart Launch")
-        title.font = NSFont.systemFont(ofSize: 20, weight: .semibold)
-        title.textColor = .plTextPrimary
+        // 用使用者自己設計的「mole」字體 logo 取代純文字標題。
+        let titleImage = NSImageView(image: moleImage("wordmark-logo") ?? NSImage())
+        titleImage.imageScaling = .scaleProportionallyUpOrDown
+        titleImage.translatesAutoresizingMaskIntoConstraints = false
+        if let logo = moleImage("wordmark-logo") {
+            let aspect = logo.size.width / logo.size.height
+            titleImage.heightAnchor.constraint(equalToConstant: 26).isActive = true
+            titleImage.widthAnchor.constraint(equalToConstant: 26 * aspect).isActive = true
+        }
 
-        let subtitle = NSTextField(labelWithString: "讓本機專案重新啟動變簡單")
+        let subtitle = NSTextField(labelWithString: "把資料夾丟給我，剩下交給我搞定")
         subtitle.font = NSFont.systemFont(ofSize: 12)
         subtitle.textColor = .plTextSecondary
 
-        let textStack = NSStackView(views: [title, subtitle])
+        let textStack = NSStackView(views: [titleImage, subtitle])
         textStack.orientation = .vertical
         textStack.alignment = .leading
         textStack.spacing = 2
@@ -1035,10 +1143,15 @@ final class MainViewController: NSViewController {
         ])
 
         if isLaunching {
-            let spinner = NSProgressIndicator()
-            spinner.style = .spinning
-            spinner.controlSize = .small
-            spinner.startAnimation(nil)
+            let digAnim = MoleDigAnimationView(frame: .zero)
+            digAnim.translatesAutoresizingMaskIntoConstraints = false
+            digAnim.widthAnchor.constraint(equalToConstant: 72).isActive = true
+            digAnim.heightAnchor.constraint(equalToConstant: 60).isActive = true
+            digAnim.startAnimating()
+
+            let doodle = NSTextField(labelWithString: "digging⋯")
+            doodle.font = NSFont(name: "Noteworthy-Bold", size: 13) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
+            doodle.textColor = .plUpdateText
 
             let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? "正在啟動…" : launchStatus)
             status.font = NSFont.systemFont(ofSize: 12)
@@ -1058,19 +1171,23 @@ final class MainViewController: NSViewController {
                 ]
             )
 
-            contentStack.addArrangedSubview(spinner)
+            contentStack.addArrangedSubview(digAnim)
+            contentStack.addArrangedSubview(doodle)
+            contentStack.setCustomSpacing(2, after: doodle)
             contentStack.addArrangedSubview(status)
             contentStack.addArrangedSubview(cancelButton)
         } else {
-            let icon = NSImageView(image: NSImage(systemSymbolName: "folder", accessibilityDescription: nil) ?? NSImage())
-            icon.contentTintColor = .plTextSecondary
-            icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 22, weight: .light)
+            let mascot = NSImageView(image: moleImage("carry-folder") ?? NSImage())
+            mascot.imageScaling = .scaleProportionallyUpOrDown
+            mascot.translatesAutoresizingMaskIntoConstraints = false
+            mascot.widthAnchor.constraint(equalToConstant: 58).isActive = true
+            mascot.heightAnchor.constraint(equalToConstant: 55).isActive = true
 
             let title = NSTextField(labelWithString: "把專案資料夾拖到這裡")
             title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
             title.textColor = .plTextPrimary
 
-            let subtitle = NSTextField(labelWithString: "自動判斷並啟動 localhost")
+            let subtitle = NSTextField(labelWithString: "不用記指令，我來判斷")
             subtitle.font = NSFont.systemFont(ofSize: 12)
             subtitle.textColor = .plTextSecondary
 
@@ -1078,7 +1195,7 @@ final class MainViewController: NSViewController {
             chooseButton.heightAnchor.constraint(equalToConstant: 30).isActive = true
             chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
 
-            contentStack.addArrangedSubview(icon)
+            contentStack.addArrangedSubview(mascot)
             contentStack.addArrangedSubview(title)
             contentStack.addArrangedSubview(subtitle)
             contentStack.setCustomSpacing(4, after: subtitle)
@@ -1090,6 +1207,18 @@ final class MainViewController: NSViewController {
                 lastLabel.textColor = .plTextTertiary
                 contentStack.addArrangedSubview(lastLabel)
             }
+
+            // 角落的手寫小提示，spec 裡唯一允許出現手寫字的地方之一。
+            let doodle = NSTextField(labelWithString: "drag it!")
+            doodle.font = NSFont(name: "Noteworthy-Bold", size: 14) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
+            doodle.textColor = .plBlueFolder
+            doodle.translatesAutoresizingMaskIntoConstraints = false
+            doodle.frameCenterRotation = -8
+            dropZone.addSubview(doodle)
+            NSLayoutConstraint.activate([
+                doodle.topAnchor.constraint(equalTo: dropZone.topAnchor, constant: 16),
+                doodle.trailingAnchor.constraint(equalTo: dropZone.trailingAnchor, constant: -28)
+            ])
         }
     }
 

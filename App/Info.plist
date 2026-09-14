@@ -11,11 +11,11 @@
     <key>LSUIElement</key>
     <false/>
     <key>CFBundleIdentifier</key>
-    <string>local.smartlaunch.gui</string>
+    <string>local.smartlaunch.gui.cute</string>
     <key>CFBundleName</key>
-    <string>SmartLaunch</string>
+    <string>SmartLaunch Cute</string>
     <key>CFBundleDisplayName</key>
-    <string>Smart Launch</string>
+    <string>Smart Launch (mole)</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

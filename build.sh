@@ -32,6 +32,11 @@ if [ -f icon/github-mark.png ]; then
   cp icon/github-mark.png "$APP/Contents/Resources/github-mark.png"
 fi
 
+if [ -d icon/mole-poses ]; then
+  echo ">> Copying mole mascot assets..."
+  cp icon/mole-poses/*.png "$APP/Contents/Resources/"
+fi
+
 echo ">> Bundling helper script (so the .app works standalone, no install.sh needed)..."
 cp bin/smart-launch.sh "$APP/Contents/Resources/smart-launch.sh"
 chmod +x "$APP/Contents/Resources/smart-launch.sh"
