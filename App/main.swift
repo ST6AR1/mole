@@ -1079,26 +1079,32 @@ final class SettingsViewController: NSViewController {
     private func buildAboutTab() -> NSView {
         let container = NSView()
 
+        // 鼴鼠插畫當主視覺，下面配一個小小的字體 logo。
+        let illustration = NSImageView(image: moleImage("about-relax") ?? NSImage())
+        illustration.imageScaling = .scaleProportionallyUpOrDown
+        illustration.translatesAutoresizingMaskIntoConstraints = false
+        if let img = moleImage("about-relax") {
+            let aspect = img.size.width / img.size.height
+            illustration.heightAnchor.constraint(equalToConstant: 100).isActive = true
+            illustration.widthAnchor.constraint(equalToConstant: 100 * aspect).isActive = true
+        }
+
         let logo = NSImageView(image: moleImage("wordmark-logo") ?? NSImage())
         logo.imageScaling = .scaleProportionallyUpOrDown
         logo.translatesAutoresizingMaskIntoConstraints = false
         if let img = moleImage("wordmark-logo") {
             let aspect = img.size.width / img.size.height
-            logo.heightAnchor.constraint(equalToConstant: 40).isActive = true
-            logo.widthAnchor.constraint(equalToConstant: 40 * aspect).isActive = true
+            logo.heightAnchor.constraint(equalToConstant: 22).isActive = true
+            logo.widthAnchor.constraint(equalToConstant: 22 * aspect).isActive = true
         }
 
-        let versionLabel = NSTextField(labelWithString: "v\(currentVersion)")
-        versionLabel.font = NSFont.systemFont(ofSize: 11)
-        versionLabel.textColor = .plTextSecondary
+        let centerStack = NSStackView(views: [illustration, logo])
+        centerStack.orientation = .vertical
+        centerStack.alignment = .centerX
+        centerStack.spacing = 10
+        centerStack.translatesAutoresizingMaskIntoConstraints = false
 
-        // 原本主畫面底部的署名，移到這裡——是個人簽名，不跟著語言切換翻譯。
-        let creditLabel = NSTextField(labelWithString: "由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
-        creditLabel.font = NSFont.systemFont(ofSize: 10)
-        creditLabel.textColor = .plTextTertiary
-        creditLabel.alignment = .center
-
-        // 下面放一個純圖示的 GitHub 連結（不用文字句子）。
+        // 左下：小一點的 GitHub 圖示 + 版本號。
         let githubButton = ClosureButton(onClick: {
             if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
                 NSWorkspace.shared.open(url)
@@ -1114,21 +1120,39 @@ final class SettingsViewController: NSViewController {
         } else {
             githubButton.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
         }
-        githubButton.contentTintColor = .plTextSecondary
+        githubButton.contentTintColor = .plTextTertiary
         githubButton.toolTip = "GitHub"
-        githubButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
-        githubButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        githubButton.widthAnchor.constraint(equalToConstant: 15).isActive = true
+        githubButton.heightAnchor.constraint(equalToConstant: 15).isActive = true
 
-        let stack = NSStackView(views: [logo, versionLabel, creditLabel, githubButton])
-        stack.orientation = .vertical
-        stack.alignment = .centerX
-        stack.spacing = 8
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        let versionLabel = NSTextField(labelWithString: "v\(currentVersion)")
+        versionLabel.font = NSFont.systemFont(ofSize: 10)
+        versionLabel.textColor = .plTextTertiary
 
-        container.addSubview(stack)
+        let bottomLeft = NSStackView(views: [githubButton, versionLabel])
+        bottomLeft.orientation = .horizontal
+        bottomLeft.alignment = .centerY
+        bottomLeft.spacing = 5
+
+        // 右下：署名，顏文字保留、不跟著語言切換翻譯。
+        let creditLabel = NSTextField(labelWithString: "由 溫 Wen 和 Claude 協同製作 ⌯^⦁𖥦⦁^⌯")
+        creditLabel.font = NSFont.systemFont(ofSize: 10)
+        creditLabel.textColor = .plTextTertiary
+
+        let bottomRow = NSStackView(views: [bottomLeft, NSView(), creditLabel])
+        bottomRow.orientation = .horizontal
+        bottomRow.alignment = .centerY
+        bottomRow.translatesAutoresizingMaskIntoConstraints = false
+
+        container.addSubview(centerStack)
+        container.addSubview(bottomRow)
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            centerStack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            centerStack.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -14),
+
+            bottomRow.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            bottomRow.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+            bottomRow.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16)
         ])
         return container
     }
