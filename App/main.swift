@@ -887,7 +887,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         let metaRow = NSStackView(views: metaRowViews)
         metaRow.orientation = .horizontal
         metaRow.alignment = .centerY
-        metaRow.spacing = 4
+        metaRow.spacing = 2
 
         let textStack = NSStackView(views: [nameRow, metaRow])
         textStack.orientation = .vertical
