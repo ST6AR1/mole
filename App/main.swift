@@ -315,21 +315,26 @@ class ClosureButton: NSButton {
 // 取代原本 SwiftUI 的 .onDrop，懸浮時用 layer 邊框做提示。
 final class DropZoneView: NSView {
     var onDrop: ((URL) -> Void)?
+    // 讓外層可以在懸浮/離開時换插畫、換文案、換配色，而不用整個重建。
+    var onHoverChange: ((Bool) -> Void)?
     private var isHovering = false {
-        didSet { updateBorder() }
+        didSet {
+            updateBorder()
+            onHoverChange?(isHovering)
+        }
     }
     private let dashLayer = CAShapeLayer()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.cornerRadius = 30
+        layer?.cornerRadius = 24
         layer?.backgroundColor = NSColor.plHeroBg.cgColor
 
         // 平常就有一圈很淡的虛線邊框（spec 裡的 dashed border），拖曳懸浮時才變成
-        // 實線的 blue-folder 強調色，讓使用者一眼知道「這裡可以放」。
+        // 實線的 accent 黃色，讓使用者一眼知道「這裡可以放」。
         dashLayer.fillColor = nil
-        dashLayer.strokeColor = NSColor.plBorder.cgColor
+        dashLayer.strokeColor = NSColor(calibratedRed: 0.839, green: 0.800, blue: 0.749, alpha: 1).cgColor
         dashLayer.lineWidth = 1.5
         dashLayer.lineDashPattern = [6, 5]
         layer?.addSublayer(dashLayer)
@@ -343,13 +348,17 @@ final class DropZoneView: NSView {
         super.layout()
         let inset: CGFloat = 1
         dashLayer.frame = bounds
-        dashLayer.path = CGPath(roundedRect: bounds.insetBy(dx: inset, dy: inset), cornerWidth: 30 - inset, cornerHeight: 30 - inset, transform: nil)
+        dashLayer.path = CGPath(roundedRect: bounds.insetBy(dx: inset, dy: inset), cornerWidth: 24 - inset, cornerHeight: 24 - inset, transform: nil)
     }
 
     private func updateBorder() {
-        layer?.borderWidth = isHovering ? 2 : 0
-        layer?.borderColor = NSColor.plBlueFolder.cgColor
-        dashLayer.isHidden = isHovering
+        dashLayer.strokeColor = isHovering
+            ? NSColor.plAccent.cgColor
+            : NSColor(calibratedRed: 0.839, green: 0.800, blue: 0.749, alpha: 1).cgColor
+        dashLayer.lineWidth = isHovering ? 2 : 1.5
+        layer?.backgroundColor = isHovering
+            ? NSColor(calibratedRed: 0.996, green: 0.992, blue: 0.961, alpha: 1).cgColor
+            : NSColor.plHeroBg.cgColor
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -404,25 +413,191 @@ final class MoleDigAnimationView: NSImageView {
 }
 
 // 主要操作按鈕（選擇資料夾）的 soft filled 外觀
-final class SoftFilledButton: ClosureButton {
+// 主要操作用的黑色藥丸按鈕（例如「選擇資料夾」「Open」），對應參考稿裡
+// bg-[#1c1917] text-white 那個按鈕樣式。
+final class PillButton: ClosureButton {
     override init(frame: NSRect) {
         super.init(frame: frame)
     }
-    convenience init(title: String, onClick: @escaping () -> Void) {
+    convenience init(title: String, fontSize: CGFloat = 12, onClick: @escaping () -> Void) {
         self.init(onClick: onClick)
         isBordered = false
         wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.backgroundColor = NSColor.plPrimaryButtonBg.cgColor
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.plAccent.withAlphaComponent(0.5).cgColor
+        layer?.backgroundColor = NSColor.plTextPrimary.cgColor
         attributedTitle = NSAttributedString(string: title, attributes: [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.plTextPrimary
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
+            .foregroundColor: NSColor.white
         ])
-        contentTintColor = .plTextPrimary
+        contentTintColor = .white
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        layer?.cornerRadius = bounds.height / 2
+    }
+}
+
+// Project card 右上角的 ••• more menu 按鈕，取代原本分開的 pin 圖示鈕跟純文字
+// Stop 鈕：常駐用選單裡的打勾狀態表示，Stop 用紅字標成危險動作，跟參考稿一致。
+final class ProjectMenuButton: NSButton {
+    private var moreMenu: NSMenu!
+    var onToggleKeepAlive: (() -> Void)?
+    var onStop: (() -> Void)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+    }
+    convenience init(isPinned: Bool) {
+        self.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        isBordered = false
+        bezelStyle = .inline
+        attributedTitle = NSAttributedString(string: "•••", attributes: [
+            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+            .foregroundColor: NSColor.plTextTertiary
+        ])
+        target = self
+        action = #selector(showMenu)
+
+        let menu = NSMenu()
+        let keepAliveItem = NSMenuItem(title: "常駐 Keep Alive", action: #selector(toggleKeepAlive), keyEquivalent: "")
+        keepAliveItem.target = self
+        keepAliveItem.state = isPinned ? .on : .off
+        menu.addItem(keepAliveItem)
+        menu.addItem(.separator())
+        let stopItem = NSMenuItem(title: "Stop", action: #selector(stopClicked), keyEquivalent: "")
+        stopItem.target = self
+        stopItem.attributedTitle = NSAttributedString(string: "Stop", attributes: [.foregroundColor: NSColor.plDanger])
+        menu.addItem(stopItem)
+        moreMenu = menu
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    @objc private func showMenu() {
+        moreMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height + 4), in: self)
+    }
+    @objc private func toggleKeepAlive() { onToggleKeepAlive?() }
+    @objc private func stopClicked() { onStop?() }
+}
+
+// 小圓角色塊標籤，對應參考稿的 Badge（框架名稱、process name 這類小標籤）。
+func makeBadge(_ text: String, bg: NSColor, fg: NSColor) -> NSView {
+    let label = NSTextField(labelWithString: text)
+    label.font = NSFont.systemFont(ofSize: 10, weight: .medium)
+    label.textColor = fg
+    label.translatesAutoresizingMaskIntoConstraints = false
+
+    let card = RoundedCardView(cornerRadius: 5, fill: bg)
+    card.addSubview(label)
+    NSLayoutConstraint.activate([
+        label.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 6),
+        label.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -6),
+        label.topAnchor.constraint(equalTo: card.topAnchor, constant: 2),
+        label.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -2)
+    ])
+    return card
+}
+
+// 一個會輕輕脈動的綠色小圓點 + "Running" 文字，標示服務正在運行中。
+final class RunningIndicatorView: NSView {
+    private let dot = NSView()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+    }
+
+    convenience init() {
+        self.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 3
+        dot.layer?.backgroundColor = NSColor(calibratedRed: 0.525, green: 0.788, blue: 0.541, alpha: 1).cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: "Running")
+        label.font = NSFont.systemFont(ofSize: 11)
+        label.textColor = NSColor(calibratedRed: 0.227, green: 0.486, blue: 0.251, alpha: 1)
+
+        let stack = NSStackView(views: [dot, label])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 5
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            dot.widthAnchor.constraint(equalToConstant: 6),
+            dot.heightAnchor.constraint(equalToConstant: 6),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 1.0
+        pulse.toValue = 0.35
+        pulse.duration = 1.0
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        dot.layer?.add(pulse, forKey: "pulse")
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
+
+// 一個 12x12 的圓角灰底小圈點，永遠放在文字之間當分隔符。
+func dotSeparator() -> NSView {
+    let label = NSTextField(labelWithString: "·")
+    label.font = NSFont.systemFont(ofSize: 11)
+    label.textColor = .plBorder
+    return label
+}
+
+// 拖曳區右上角那道手繪感的小箭頭，純用 CAShapeLayer 畫貝茲曲線。
+final class HandDrawnArrowView: NSView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    var strokeColor: NSColor = .plTextTertiary {
+        didSet { needsLayout = true }
+    }
+
+    override func layout() {
+        super.layout()
+        layer?.sublayers?.removeAll()
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: bounds.width - 4, y: bounds.height - 2))
+        path.addCurve(
+            to: CGPoint(x: 4, y: 4),
+            control1: CGPoint(x: bounds.width - 18, y: bounds.height - 2),
+            control2: CGPoint(x: 14, y: 16)
+        )
+        let shaft = CAShapeLayer()
+        shaft.path = path
+        shaft.strokeColor = strokeColor.cgColor
+        shaft.fillColor = nil
+        shaft.lineWidth = 1.5
+        shaft.lineCap = .round
+        layer?.addSublayer(shaft)
+
+        let head = CGMutablePath()
+        head.move(to: CGPoint(x: 4, y: 4))
+        head.addLine(to: CGPoint(x: 9, y: 9))
+        head.move(to: CGPoint(x: 4, y: 4))
+        head.addLine(to: CGPoint(x: 10, y: 3))
+        let headLayer = CAShapeLayer()
+        headLayer.path = head
+        headLayer.strokeColor = strokeColor.cgColor
+        headLayer.fillColor = nil
+        headLayer.lineWidth = 1.5
+        headLayer.lineCap = .round
+        layer?.addSublayer(headLayer)
+    }
 }
 
 // MARK: - Ports table (pure AppKit)
@@ -439,6 +614,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     var otherPorts: [PortInfo] = []
     var showOtherServices = false
     var persistentPorts: Set<String> = []
+    var projectNames: [String: String] = [:]
 
     var onOpen: ((String) -> Void)?
     var onTogglePersistent: ((String) -> Void)?
@@ -479,7 +655,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         switch rows[row] {
         case .empty: return 130
-        case .project: return 80
+        case .project: return 68
         case .othersHeader: return 32
         case .other: return 40
         }
@@ -534,79 +710,111 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     private func makeProjectRow(_ info: PortInfo, showMascot: Bool) -> NSView {
         let wrapper = NSView()
 
-        let card = RoundedCardView(cornerRadius: 20, fill: .plRowBg, borderColor: .plBorder)
+        let card = RoundedCardView(cornerRadius: 14, fill: .plRowBg, borderColor: .plBorder)
         wrapper.addSubview(card)
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
-            card.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 5),
-            card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -5)
+            card.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 4),
+            card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -4)
         ])
 
-        let linkButton = ClosureButton(onClick: { [weak self] in
+        // 資料夾圖示色塊，取代原本沒有任何識別物的純文字列。
+        let folderChip = RoundedCardView(cornerRadius: 9, fill: .plBlueFolderLight)
+        let folderIcon = NSImageView(image: NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil) ?? NSImage())
+        folderIcon.contentTintColor = .plBlueFolder
+        folderIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        folderIcon.translatesAutoresizingMaskIntoConstraints = false
+        folderChip.addSubview(folderIcon)
+        NSLayoutConstraint.activate([
+            folderChip.widthAnchor.constraint(equalToConstant: 34),
+            folderChip.heightAnchor.constraint(equalToConstant: 34),
+            folderIcon.centerXAnchor.constraint(equalTo: folderChip.centerXAnchor),
+            folderIcon.centerYAnchor.constraint(equalTo: folderChip.centerYAnchor)
+        ])
+
+        // 名稱優先顯示我們自己啟動時記住的專案（資料夾）名稱；不是我們啟動的
+        // （例如開 App 前就在跑的服務）就退回顯示 process 名稱。
+        let displayName = projectNames[info.port] ?? info.processName
+        let isPinned = persistentPorts.contains(info.port)
+
+        let nameLabel = NSTextField(labelWithString: displayName)
+        nameLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        nameLabel.textColor = .plTextPrimary
+        nameLabel.lineBreakMode = .byTruncatingTail
+
+        var nameRowViews: [NSView] = [nameLabel]
+        if isPinned {
+            nameRowViews.append(makeBadge("pinned", bg: NSColor.plBorder.withAlphaComponent(0.5), fg: .plTextSecondary))
+        }
+        let nameRow = NSStackView(views: nameRowViews)
+        nameRow.orientation = .horizontal
+        nameRow.alignment = .centerY
+        nameRow.spacing = 6
+
+        let urlButton = ClosureButton(onClick: { [weak self] in
             self?.onOpen?(info.port)
         })
-        linkButton.attributedTitle = NSAttributedString(
-            string: "localhost:\(info.port)  ↗",
+        urlButton.attributedTitle = NSAttributedString(
+            string: "localhost:\(info.port)",
             attributes: [
-                .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-                .foregroundColor: NSColor.plLocalhostText
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.plBlueFolder
             ]
         )
-        linkButton.isBordered = false
-        linkButton.bezelStyle = .inline
-        linkButton.alignment = .left
-        linkButton.contentTintColor = .plLocalhostText
-        linkButton.toolTip = "\(info.uptime)\n\(info.command)"
+        urlButton.isBordered = false
+        urlButton.bezelStyle = .inline
+        urlButton.contentTintColor = .plBlueFolder
+        urlButton.toolTip = "\(info.uptime)\n\(info.command)"
 
-        let subLabel = NSTextField(labelWithString: "\(info.processName) · \(shortUptime(info.uptimeSeconds))")
-        subLabel.font = NSFont.systemFont(ofSize: 11)
-        subLabel.textColor = .plTextSecondary
-        subLabel.translatesAutoresizingMaskIntoConstraints = false
+        let processBadge = makeBadge(info.processName, bg: .plRowBgMuted, fg: .plTextSecondary)
+        let runningIndicator = RunningIndicatorView()
+        let durationLabel = NSTextField(labelWithString: shortUptime(info.uptimeSeconds))
+        durationLabel.font = NSFont.systemFont(ofSize: 11)
+        durationLabel.textColor = .plTextTertiary
 
-        let textStack = NSStackView(views: [linkButton, subLabel])
+        let metaRow = NSStackView(views: [urlButton, dotSeparator(), processBadge, dotSeparator(), runningIndicator, dotSeparator(), durationLabel])
+        metaRow.orientation = .horizontal
+        metaRow.alignment = .centerY
+        metaRow.spacing = 6
+
+        let textStack = NSStackView(views: [nameRow, metaRow])
         textStack.orientation = .vertical
         textStack.alignment = .leading
         textStack.spacing = 3
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
-        let isPinned = persistentPorts.contains(info.port)
-        let pinButton = ClosureButton(onClick: { [weak self] in
-            self?.onTogglePersistent?(info.port)
+        let openButton = PillButton(title: "Open", fontSize: 11, onClick: { [weak self] in
+            self?.onOpen?(info.port)
         })
-        pinButton.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: "常駐")
-        pinButton.isBordered = false
-        pinButton.bezelStyle = .inline
-        pinButton.contentTintColor = isPinned ? .plTextPrimary : .plTextTertiary
-        pinButton.toolTip = "常駐：不會被自動過期關閉"
-        pinButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        pinButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        openButton.widthAnchor.constraint(equalToConstant: 52).isActive = true
+        openButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
-        let stopButton = ClosureButton(onClick: { [weak self] in
-            self?.onStop?(info)
-        })
-        stopButton.attributedTitle = NSAttributedString(
-            string: "Stop",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: NSColor.plDanger
-            ]
-        )
-        stopButton.isBordered = false
-        stopButton.bezelStyle = .inline
+        // ••• 選單取代原本分開的 pin 圖示鈕跟純文字 Stop 鈕，跟參考稿的 More menu 一致：
+        // 「常駐」在裡面用打勾狀態表示，Stop 用紅字標成危險動作。
+        let menuButton = ProjectMenuButton(isPinned: isPinned)
+        menuButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        menuButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        menuButton.onToggleKeepAlive = { [weak self] in self?.onTogglePersistent?(info.port) }
+        menuButton.onStop = { [weak self] in self?.onStop?(info) }
 
-        let rightStack = NSStackView(views: [pinButton, stopButton])
+        let rightStack = NSStackView(views: [openButton, menuButton])
         rightStack.orientation = .horizontal
         rightStack.alignment = .centerY
-        rightStack.spacing = 10
+        rightStack.spacing = 6
         rightStack.translatesAutoresizingMaskIntoConstraints = false
 
+        card.addSubview(folderChip)
         card.addSubview(textStack)
         card.addSubview(rightStack)
         NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            folderChip.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            folderChip.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+
+            textStack.leadingAnchor.constraint(equalTo: folderChip.trailingAnchor, constant: 10),
             textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
             rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             textStack.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8)
         ])
@@ -702,6 +910,10 @@ final class MainViewController: NSViewController {
     private var ports: [PortInfo] = []
     private var isRefreshing = false
     private var lastLaunched = ""
+    // 記住「這個 session 裡我們自己啟動的 port 對應哪個資料夾名稱」，讓 Running
+    // Projects 卡片能顯示真正的專案名稱而不是只有 process 名稱；重開 App 前就啟動
+    // 好、我們沒參與偵測的 port 沒有這筆資料，卡片會退回顯示 process 名稱。
+    private var launchedProjectNames: [String: String] = [:]
     private var autoExpiredNotice = ""
     private var showOtherServices = false
     private var isLaunching = false
@@ -731,6 +943,7 @@ final class MainViewController: NSViewController {
     private var refreshTimer: Timer?
 
     // MARK: Views
+    private let toolbarHost = NSView()
     private let topStack = NSStackView()
     private let updateBannerHost = NSView()
     private let heroCardHost = NSView()
@@ -771,7 +984,29 @@ final class MainViewController: NSViewController {
         topStack.spacing = 16
         topStack.translatesAutoresizingMaskIntoConstraints = false
 
-        topStack.addArrangedSubview(buildHeader())
+        // Toolbar 是獨立於內容區的一條列（貼齊視窗兩側，下面一條細分隔線），
+        // 不是內容區裡的第一段——這樣看起來才像 desktop app 的 toolbar，
+        // 而不是網頁的 navbar 縮在內容欄裡。
+        toolbarHost.translatesAutoresizingMaskIntoConstraints = false
+        let headerContent = buildHeader()
+        headerContent.translatesAutoresizingMaskIntoConstraints = false
+        toolbarHost.addSubview(headerContent)
+        let toolbarSeparator = NSView()
+        toolbarSeparator.wantsLayer = true
+        toolbarSeparator.layer?.backgroundColor = NSColor.plBorder.cgColor
+        toolbarSeparator.translatesAutoresizingMaskIntoConstraints = false
+        toolbarHost.addSubview(toolbarSeparator)
+        NSLayoutConstraint.activate([
+            headerContent.topAnchor.constraint(equalTo: toolbarHost.topAnchor, constant: 14),
+            headerContent.leadingAnchor.constraint(equalTo: toolbarHost.leadingAnchor, constant: 20),
+            headerContent.trailingAnchor.constraint(equalTo: toolbarHost.trailingAnchor, constant: -20),
+            headerContent.bottomAnchor.constraint(equalTo: toolbarSeparator.topAnchor, constant: -12),
+            toolbarSeparator.heightAnchor.constraint(equalToConstant: 1),
+            toolbarSeparator.leadingAnchor.constraint(equalTo: toolbarHost.leadingAnchor),
+            toolbarSeparator.trailingAnchor.constraint(equalTo: toolbarHost.trailingAnchor),
+            toolbarSeparator.bottomAnchor.constraint(equalTo: toolbarHost.bottomAnchor)
+        ])
+
         topStack.addArrangedSubview(updateBannerHost)
         topStack.addArrangedSubview(heroCardHost)
         topStack.addArrangedSubview(autoCloseHost)
@@ -815,12 +1050,17 @@ final class MainViewController: NSViewController {
         footerHost.translatesAutoresizingMaskIntoConstraints = false
         buildFooter()
 
+        view.addSubview(toolbarHost)
         view.addSubview(topStack)
         view.addSubview(scrollView)
         view.addSubview(footerHost)
 
         NSLayoutConstraint.activate([
-            topStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
+            toolbarHost.topAnchor.constraint(equalTo: view.topAnchor),
+            toolbarHost.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            toolbarHost.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            topStack.topAnchor.constraint(equalTo: toolbarHost.bottomAnchor, constant: 16),
             topStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             topStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
@@ -841,25 +1081,27 @@ final class MainViewController: NSViewController {
         syncPortsTable()
     }
 
+    // Desktop app 的 toolbar，不是網頁 navbar：logo 跟 tagline 水平並排在同一條基準線上，
+    // 右邊放一個一般的 icon+text pill 按鈕，整條列貼著視窗兩側、下面有分隔線
+    // （分隔線在 buildLayout 裡的 toolbarHost 加）。
     private func buildHeader() -> NSView {
-        // 用使用者自己設計的「mole」字體 logo 取代純文字標題。
         let titleImage = NSImageView(image: moleImage("wordmark-logo") ?? NSImage())
         titleImage.imageScaling = .scaleProportionallyUpOrDown
         titleImage.translatesAutoresizingMaskIntoConstraints = false
         if let logo = moleImage("wordmark-logo") {
             let aspect = logo.size.width / logo.size.height
-            titleImage.heightAnchor.constraint(equalToConstant: 26).isActive = true
-            titleImage.widthAnchor.constraint(equalToConstant: 26 * aspect).isActive = true
+            titleImage.heightAnchor.constraint(equalToConstant: 22).isActive = true
+            titleImage.widthAnchor.constraint(equalToConstant: 22 * aspect).isActive = true
         }
 
-        let subtitle = NSTextField(labelWithString: "把資料夾丟給我，剩下交給我搞定")
-        subtitle.font = NSFont.systemFont(ofSize: 12)
-        subtitle.textColor = .plTextSecondary
+        let tagline = NSTextField(labelWithString: "Drop. Detect. Run.")
+        tagline.font = NSFont.systemFont(ofSize: 10)
+        tagline.textColor = .plTextTertiary
 
-        let textStack = NSStackView(views: [titleImage, subtitle])
-        textStack.orientation = .vertical
-        textStack.alignment = .leading
-        textStack.spacing = 2
+        let leftStack = NSStackView(views: [titleImage, tagline])
+        leftStack.orientation = .horizontal
+        leftStack.alignment = .centerY
+        leftStack.spacing = 9
 
         let githubButton = ClosureButton(onClick: {
             if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
@@ -869,11 +1111,10 @@ final class MainViewController: NSViewController {
         githubButton.isBordered = false
         githubButton.bezelStyle = .inline
         githubButton.wantsLayer = true
-        githubButton.layer?.cornerRadius = 14
-        githubButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.04).cgColor
+        githubButton.layer?.cornerRadius = 6
         githubButton.toolTip = "在 GitHub 上查看這個專案"
-        githubButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
-        githubButton.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        githubButton.imagePosition = .imageLeading
+        githubButton.imageScaling = .scaleProportionallyDown
         if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
            let nsImage = NSImage(contentsOfFile: path) {
             nsImage.isTemplate = true
@@ -881,12 +1122,16 @@ final class MainViewController: NSViewController {
         } else {
             githubButton.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
         }
-        githubButton.imageScaling = .scaleProportionallyDown
-        githubButton.contentTintColor = .plTextTertiary
+        githubButton.contentTintColor = .plTextSecondary
+        githubButton.attributedTitle = NSAttributedString(string: "  GitHub", attributes: [
+            .font: NSFont.systemFont(ofSize: 12),
+            .foregroundColor: NSColor.plTextSecondary
+        ])
+        githubButton.heightAnchor.constraint(equalToConstant: 26).isActive = true
 
-        let row = NSStackView(views: [textStack, NSView(), githubButton])
+        let row = NSStackView(views: [leftStack, NSView(), githubButton])
         row.orientation = .horizontal
-        row.alignment = .top
+        row.alignment = .centerY
         row.distribution = .fill
         row.setHuggingPriority(.defaultLow, for: .horizontal)
         return row
@@ -1109,9 +1354,9 @@ final class MainViewController: NSViewController {
 
         let shadowContainer = NSView()
         shadowContainer.wantsLayer = true
-        shadowContainer.layer?.shadowOpacity = 0.08
-        shadowContainer.layer?.shadowRadius = 16
-        shadowContainer.layer?.shadowOffset = CGSize(width: 0, height: -6)
+        shadowContainer.layer?.shadowOpacity = 0.06
+        shadowContainer.layer?.shadowRadius = 14
+        shadowContainer.layer?.shadowOffset = CGSize(width: 0, height: -4)
         shadowContainer.translatesAutoresizingMaskIntoConstraints = false
         heroCardHost.addSubview(shadowContainer, positioned: .below, relativeTo: dropZone)
         NSLayoutConstraint.activate([
@@ -1126,13 +1371,13 @@ final class MainViewController: NSViewController {
             dropZone.trailingAnchor.constraint(equalTo: heroCardHost.trailingAnchor),
             dropZone.topAnchor.constraint(equalTo: heroCardHost.topAnchor),
             dropZone.bottomAnchor.constraint(equalTo: heroCardHost.bottomAnchor),
-            dropZone.heightAnchor.constraint(equalToConstant: isLaunching ? 160 : 170)
+            dropZone.heightAnchor.constraint(equalToConstant: isLaunching ? 200 : 224)
         ])
 
         let contentStack = NSStackView()
         contentStack.orientation = .vertical
         contentStack.alignment = .centerX
-        contentStack.spacing = 10
+        contentStack.spacing = 9
         contentStack.translatesAutoresizingMaskIntoConstraints = false
         dropZone.addSubview(contentStack)
         NSLayoutConstraint.activate([
@@ -1145,20 +1390,32 @@ final class MainViewController: NSViewController {
         if isLaunching {
             let digAnim = MoleDigAnimationView(frame: .zero)
             digAnim.translatesAutoresizingMaskIntoConstraints = false
-            digAnim.widthAnchor.constraint(equalToConstant: 72).isActive = true
-            digAnim.heightAnchor.constraint(equalToConstant: 60).isActive = true
+            digAnim.widthAnchor.constraint(equalToConstant: 96).isActive = true
+            digAnim.heightAnchor.constraint(equalToConstant: 80).isActive = true
             digAnim.startAnimating()
 
             let doodle = NSTextField(labelWithString: "digging⋯")
             doodle.font = NSFont(name: "Noteworthy-Bold", size: 13) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
             doodle.textColor = .plUpdateText
 
-            let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? "正在啟動…" : launchStatus)
+            let title = NSTextField(labelWithString: "正在分析專案")
+            title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+            title.textColor = .plTextPrimary
+
+            let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? "看看這個資料夾裡藏了什麼" : launchStatus)
             status.font = NSFont.systemFont(ofSize: 12)
             status.textColor = .plTextSecondary
             status.alignment = .center
             status.maximumNumberOfLines = 2
             status.widthAnchor.constraint(lessThanOrEqualToConstant: 380).isActive = true
+
+            let progress = NSProgressIndicator()
+            progress.style = .bar
+            progress.isIndeterminate = true
+            progress.controlSize = .small
+            progress.startAnimation(nil)
+            progress.translatesAutoresizingMaskIntoConstraints = false
+            progress.widthAnchor.constraint(equalToConstant: 160).isActive = true
 
             let cancelButton = ClosureButton(onClick: { [weak self] in self?.cancelWaiting() })
             cancelButton.isBordered = false
@@ -1173,52 +1430,99 @@ final class MainViewController: NSViewController {
 
             contentStack.addArrangedSubview(digAnim)
             contentStack.addArrangedSubview(doodle)
-            contentStack.setCustomSpacing(2, after: doodle)
+            contentStack.setCustomSpacing(6, after: doodle)
+            contentStack.addArrangedSubview(title)
             contentStack.addArrangedSubview(status)
+            contentStack.setCustomSpacing(10, after: status)
+            contentStack.addArrangedSubview(progress)
+            contentStack.setCustomSpacing(6, after: progress)
             contentStack.addArrangedSubview(cancelButton)
         } else {
-            let mascot = NSImageView(image: moleImage("carry-folder") ?? NSImage())
+            let mascot = NSImageView(image: moleImage("hold-folder-idle") ?? NSImage())
             mascot.imageScaling = .scaleProportionallyUpOrDown
             mascot.translatesAutoresizingMaskIntoConstraints = false
-            mascot.widthAnchor.constraint(equalToConstant: 58).isActive = true
-            mascot.heightAnchor.constraint(equalToConstant: 55).isActive = true
+            mascot.widthAnchor.constraint(equalToConstant: 96).isActive = true
+            mascot.heightAnchor.constraint(equalToConstant: 68).isActive = true
 
             let title = NSTextField(labelWithString: "把專案資料夾拖到這裡")
-            title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+            title.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
             title.textColor = .plTextPrimary
 
             let subtitle = NSTextField(labelWithString: "不用記指令，我來判斷")
             subtitle.font = NSFont.systemFont(ofSize: 12)
             subtitle.textColor = .plTextSecondary
 
-            let chooseButton = SoftFilledButton(title: "選擇資料夾", onClick: { [weak self] in self?.chooseFolder() })
-            chooseButton.heightAnchor.constraint(equalToConstant: 30).isActive = true
-            chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
+            let chooseButton = PillButton(title: "選擇資料夾", onClick: { [weak self] in self?.chooseFolder() })
+            chooseButton.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 112).isActive = true
 
             contentStack.addArrangedSubview(mascot)
             contentStack.addArrangedSubview(title)
             contentStack.addArrangedSubview(subtitle)
-            contentStack.setCustomSpacing(4, after: subtitle)
+            contentStack.setCustomSpacing(10, after: subtitle)
             contentStack.addArrangedSubview(chooseButton)
 
             if !lastLaunched.isEmpty {
                 let lastLabel = NSTextField(labelWithString: "上次啟動：\(lastLaunched)")
                 lastLabel.font = NSFont.systemFont(ofSize: 10)
                 lastLabel.textColor = .plTextTertiary
+                contentStack.setCustomSpacing(8, after: chooseButton)
                 contentStack.addArrangedSubview(lastLabel)
             }
 
-            // 角落的手寫小提示，spec 裡唯一允許出現手寫字的地方之一。
+            // 角落的手寫小提示 + 手繪箭頭，spec 裡唯一允許出現手寫字的地方之一。
             let doodle = NSTextField(labelWithString: "drag it!")
             doodle.font = NSFont(name: "Noteworthy-Bold", size: 14) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
-            doodle.textColor = .plBlueFolder
+            doodle.textColor = .plTextTertiary
             doodle.translatesAutoresizingMaskIntoConstraints = false
-            doodle.frameCenterRotation = -8
+            doodle.frameCenterRotation = -6
+
+            let arrow = HandDrawnArrowView(frame: .zero)
+            arrow.strokeColor = .plTextTertiary
+            arrow.translatesAutoresizingMaskIntoConstraints = false
+
+            dropZone.addSubview(arrow)
             dropZone.addSubview(doodle)
             NSLayoutConstraint.activate([
-                doodle.topAnchor.constraint(equalTo: dropZone.topAnchor, constant: 16),
-                doodle.trailingAnchor.constraint(equalTo: dropZone.trailingAnchor, constant: -28)
+                doodle.topAnchor.constraint(equalTo: dropZone.topAnchor, constant: 14),
+                doodle.trailingAnchor.constraint(equalTo: dropZone.trailingAnchor, constant: -22),
+                arrow.widthAnchor.constraint(equalToConstant: 30),
+                arrow.heightAnchor.constraint(equalToConstant: 22),
+                arrow.topAnchor.constraint(equalTo: doodle.bottomAnchor, constant: 2),
+                arrow.trailingAnchor.constraint(equalTo: dropZone.trailingAnchor, constant: -14)
             ])
+
+            // 左下角的小腳印裝飾，很淡，只是個氣氛細節。
+            if let paw = moleImage("pawprints") {
+                let pawView = NSImageView(image: paw)
+                pawView.imageScaling = .scaleProportionallyUpOrDown
+                pawView.alphaValue = 0.35
+                pawView.translatesAutoresizingMaskIntoConstraints = false
+                dropZone.addSubview(pawView)
+                NSLayoutConstraint.activate([
+                    pawView.widthAnchor.constraint(equalToConstant: 46),
+                    pawView.heightAnchor.constraint(equalToConstant: 23),
+                    pawView.leadingAnchor.constraint(equalTo: dropZone.leadingAnchor, constant: 18),
+                    pawView.bottomAnchor.constraint(equalTo: dropZone.bottomAnchor, constant: -14)
+                ])
+            }
+
+            // 拖曳懸浮時：邊框變 accent 黃、鼴鼠換成伸手接住的姿勢、文案跟著換。
+            dropZone.onHoverChange = { isHovering in
+                if isHovering {
+                    mascot.image = moleImage("carry-folder") ?? mascot.image
+                    title.stringValue = "drop it here"
+                    subtitle.stringValue = "我接住了！"
+                    doodle.stringValue = "gimme!"
+                    doodle.textColor = .plUpdateText
+                } else {
+                    mascot.image = moleImage("hold-folder-idle") ?? mascot.image
+                    title.stringValue = "把專案資料夾拖到這裡"
+                    subtitle.stringValue = "不用記指令，我來判斷"
+                    doodle.stringValue = "drag it!"
+                    doodle.textColor = .plTextTertiary
+                }
+            }
         }
     }
 
@@ -1478,6 +1782,7 @@ final class MainViewController: NSViewController {
         portsTable.otherPorts = otherPorts
         portsTable.showOtherServices = showOtherServices
         portsTable.persistentPorts = persistentPorts
+        portsTable.projectNames = launchedProjectNames
         portsTable.reload()
     }
 
@@ -1518,6 +1823,7 @@ final class MainViewController: NSViewController {
         rebuildHeroCard()
         let token = UUID()
         pollToken = token
+        let projectName = URL(fileURLWithPath: path).lastPathComponent
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let before = Set(fetchPorts().filter { $0.isDev }.map { $0.port })
@@ -1541,7 +1847,7 @@ final class MainViewController: NSViewController {
                 self.rebuildHeroCard()
             }
 
-            self?.pollForNewServer(before: before, attemptsLeft: pollMaxAttempts, token: token)
+            self?.pollForNewServer(before: before, projectName: projectName, attemptsLeft: pollMaxAttempts, token: token)
         }
     }
 
@@ -1552,7 +1858,7 @@ final class MainViewController: NSViewController {
         rebuildHeroCard()
     }
 
-    private func pollForNewServer(before: Set<String>, attemptsLeft: Int, token: UUID) {
+    private func pollForNewServer(before: Set<String>, projectName: String, attemptsLeft: Int, token: UUID) {
         guard attemptsLeft > 0 else {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.pollToken == token else { return }
@@ -1589,12 +1895,13 @@ final class MainViewController: NSViewController {
                 guard let self = self, self.pollToken == token else { return }
                 self.isLaunching = false
                 self.launchStatus = ""
+                self.launchedProjectNames[newOne.port] = projectName
                 self.rebuildHeroCard()
                 self.refresh()
                 self.openBrowser(port: newOne.port)
             }
         } else {
-            pollForNewServer(before: before, attemptsLeft: attemptsLeft - 1, token: token)
+            pollForNewServer(before: before, projectName: projectName, attemptsLeft: attemptsLeft - 1, token: token)
         }
     }
 }
