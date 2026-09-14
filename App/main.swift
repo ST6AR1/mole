@@ -943,7 +943,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             // 自己的壓縮抵抗優先權（預設偏高，會讓上面那條 <= 沒有真的生效）。
             nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: clickRegion.trailingAnchor, constant: -4),
 
-            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -6),
             rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
 
