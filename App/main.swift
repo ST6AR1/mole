@@ -897,7 +897,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         let rightStack = NSStackView(views: [pinButton, stopButton])
         rightStack.orientation = .horizontal
         rightStack.alignment = .centerY
-        rightStack.spacing = 6
+        rightStack.spacing = 10
         rightStack.translatesAutoresizingMaskIntoConstraints = false
 
         // 拿掉單獨的 Open 按鈕，改成整個左側區域（圖示、標題、網址）都能點擊
@@ -914,7 +914,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             clickRegion.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             clickRegion.topAnchor.constraint(equalTo: card.topAnchor),
             clickRegion.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-            clickRegion.trailingAnchor.constraint(equalTo: rightStack.leadingAnchor, constant: -4),
+            clickRegion.trailingAnchor.constraint(equalTo: rightStack.leadingAnchor, constant: -14),
 
             folderChip.leadingAnchor.constraint(equalTo: clickRegion.leadingAnchor, constant: 12),
             folderChip.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
@@ -923,7 +923,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             textStack.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
             textStack.trailingAnchor.constraint(lessThanOrEqualTo: clickRegion.trailingAnchor),
 
-            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
             rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
 
@@ -1040,7 +1040,28 @@ final class SettingsViewController: NSViewController {
         creditLabel.textColor = .plTextTertiary
         creditLabel.alignment = .center
 
-        let stack = NSStackView(views: [logo, versionLabel, creditLabel])
+        // 下面放一個純圖示的 GitHub 連結（不用文字句子）。
+        let githubButton = ClosureButton(onClick: {
+            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
+                NSWorkspace.shared.open(url)
+            }
+        })
+        githubButton.isBordered = false
+        githubButton.bezelStyle = .inline
+        githubButton.imageScaling = .scaleProportionallyDown
+        if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
+           let nsImage = NSImage(contentsOfFile: path) {
+            nsImage.isTemplate = true
+            githubButton.image = nsImage
+        } else {
+            githubButton.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
+        }
+        githubButton.contentTintColor = .plTextSecondary
+        githubButton.toolTip = "GitHub"
+        githubButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        githubButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
+
+        let stack = NSStackView(views: [logo, versionLabel, creditLabel, githubButton])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 8
