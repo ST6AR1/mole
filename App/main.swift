@@ -255,6 +255,51 @@ func moleImage(_ name: String) -> NSImage? {
     return image
 }
 
+// MARK: - Localization
+//
+// 簡單的雙語字典，不是完整的 .strings/.lproj 系統——只覆蓋使用者最常看到的
+// 主要文案（拖曳區、啟動中、Auto Close、Running Projects、警示訊息等），
+// 在 Settings 裡切換語言時即時生效，不需要重開 App。
+enum AppLanguage: String {
+    case zh, en
+
+    static var current: AppLanguage {
+        get { AppLanguage(rawValue: UserDefaults.standard.string(forKey: "smartlaunch.language") ?? "zh") ?? .zh }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "smartlaunch.language") }
+    }
+}
+
+private let localizedStrings: [String: [AppLanguage: String]] = [
+    "tagline": [.zh: "拖曳・偵測・執行", .en: "Drop. Detect. Run."],
+    "drop.title": [.zh: "把專案資料夾拖到這裡", .en: "Drop your project folder here"],
+    "drop.subtitle": [.zh: "不用記指令，我來判斷", .en: "No commands to remember, I'll figure it out"],
+    "drop.button": [.zh: "選擇資料夾", .en: "Choose Folder"],
+    "drop.doodle": [.zh: "drag it!", .en: "drag it!"],
+    "drop.hover.title": [.zh: "drop it here", .en: "drop it here"],
+    "drop.hover.subtitle": [.zh: "我接住了！", .en: "Got it!"],
+    "drop.hover.doodle": [.zh: "gimme!", .en: "gimme!"],
+    "drop.lastLaunched": [.zh: "上次啟動：", .en: "Last launched: "],
+    "launch.title": [.zh: "正在分析專案", .en: "Analyzing project"],
+    "launch.subtitle": [.zh: "看看這個資料夾裡藏了什麼", .en: "Let's see what's in this folder"],
+    "launch.doodle": [.zh: "digging⋯", .en: "digging⋯"],
+    "launch.cancel": [.zh: "先不等了", .en: "Never mind"],
+    "empty.title": [.zh: "目前沒有專案在跑", .en: "Nothing running right now"],
+    "autoclose.title": [.zh: "Auto Close", .en: "Auto Close"],
+    "autoclose.subtitle": [.zh: "閒置專案將自動關閉", .en: "Idle projects will close automatically"],
+    "running.title": [.zh: "Running Projects", .en: "Running Projects"],
+    "running.killAll": [.zh: "全部關閉", .en: "Stop All"],
+    "settings.title": [.zh: "設定", .en: "Settings"],
+    "settings.general": [.zh: "一般", .en: "General"],
+    "settings.about": [.zh: "關於", .en: "About"],
+    "settings.language": [.zh: "語言", .en: "Language"],
+    "settings.github": [.zh: "在 GitHub 上查看", .en: "View on GitHub"],
+    "settings.license": [.zh: "MIT 授權", .en: "MIT License"],
+]
+
+func t(_ key: String) -> String {
+    localizedStrings[key]?[AppLanguage.current] ?? key
+}
+
 // MARK: - Design tokens
 
 // 可愛版色票，直接對應 Figma 參考稿（mole-ui-spec）裡的 --color-* token，
@@ -442,13 +487,12 @@ final class PillButton: ClosureButton {
 // Stop 鈕：常駐用選單裡的打勾狀態表示，Stop 用紅字標成危險動作，跟參考稿一致。
 final class ProjectMenuButton: NSButton {
     private var moreMenu: NSMenu!
-    var onToggleKeepAlive: (() -> Void)?
     var onStop: (() -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
     }
-    convenience init(isPinned: Bool) {
+    convenience init() {
         self.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         isBordered = false
@@ -461,11 +505,6 @@ final class ProjectMenuButton: NSButton {
         action = #selector(showMenu)
 
         let menu = NSMenu()
-        let keepAliveItem = NSMenuItem(title: "常駐 Keep Alive", action: #selector(toggleKeepAlive), keyEquivalent: "")
-        keepAliveItem.target = self
-        keepAliveItem.state = isPinned ? .on : .off
-        menu.addItem(keepAliveItem)
-        menu.addItem(.separator())
         let stopItem = NSMenuItem(title: "Stop", action: #selector(stopClicked), keyEquivalent: "")
         stopItem.target = self
         stopItem.attributedTitle = NSAttributedString(string: "Stop", attributes: [.foregroundColor: NSColor.plDanger])
@@ -477,7 +516,6 @@ final class ProjectMenuButton: NSButton {
     @objc private func showMenu() {
         moreMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height + 4), in: self)
     }
-    @objc private func toggleKeepAlive() { onToggleKeepAlive?() }
     @objc private func stopClicked() { onStop?() }
 }
 
@@ -611,36 +649,28 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     weak var tableView: NSTableView?
 
     var devPorts: [PortInfo] = []
-    var otherPorts: [PortInfo] = []
-    var showOtherServices = false
     var persistentPorts: Set<String> = []
     var projectNames: [String: String] = [:]
 
     var onOpen: ((String) -> Void)?
     var onTogglePersistent: ((String) -> Void)?
     var onStop: ((PortInfo) -> Void)?
-    var onToggleOthers: (() -> Void)?
 
     private enum RowItem {
         case empty
         case project(PortInfo)
-        case othersHeader(Int)
-        case other(PortInfo)
     }
     private var rows: [RowItem] = []
 
+    // System services 清單拿掉了：使用者反正也關不掉那些系統背景服務，
+    // 顯示一堆看了也不能做什麼的東西只是雜訊，不如只留使用者真正在乎的
+    // 自己啟動的開發專案。
     func reload() {
         var r: [RowItem] = []
         if devPorts.isEmpty {
             r.append(.empty)
         } else {
             for info in devPorts { r.append(.project(info)) }
-        }
-        if !otherPorts.isEmpty {
-            r.append(.othersHeader(otherPorts.count))
-            if showOtherServices {
-                for info in otherPorts { r.append(.other(info)) }
-            }
         }
         rows = r
         tableView?.reloadData()
@@ -656,8 +686,6 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         switch rows[row] {
         case .empty: return 130
         case .project: return 68
-        case .othersHeader: return 32
-        case .other: return 40
         }
     }
 
@@ -668,10 +696,6 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         case .project(let info):
             let isFirst = !rows[0..<row].contains { if case .project = $0 { return true } else { return false } }
             return makeProjectRow(info, showMascot: isFirst)
-        case .othersHeader(let count):
-            return makeOthersHeaderRow(count)
-        case .other(let info):
-            return makeOtherRow(info)
         }
     }
 
@@ -684,7 +708,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         mound.widthAnchor.constraint(equalToConstant: 92).isActive = true
         mound.heightAnchor.constraint(equalToConstant: 70).isActive = true
 
-        let label = NSTextField(labelWithString: "目前沒有專案在跑")
+        let label = NSTextField(labelWithString: t("empty.title"))
         label.font = NSFont.systemFont(ofSize: 12)
         label.textColor = .plTextTertiary
         label.alignment = .center
@@ -790,15 +814,26 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         openButton.widthAnchor.constraint(equalToConstant: 52).isActive = true
         openButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
-        // ••• 選單取代原本分開的 pin 圖示鈕跟純文字 Stop 鈕，跟參考稿的 More menu 一致：
-        // 「常駐」在裡面用打勾狀態表示，Stop 用紅字標成危險動作。
-        let menuButton = ProjectMenuButton(isPinned: isPinned)
-        menuButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        menuButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        menuButton.onToggleKeepAlive = { [weak self] in self?.onTogglePersistent?(info.port) }
+        // 常駐（Keep Alive）改回一個外露的圖釘圖示鈕，不要藏進 ••• 選單裡——
+        // 使用者明確說希望常駐這個功能是看得到、按得到的，不是要點兩下選單才找得到。
+        let pinButton = ClosureButton(onClick: { [weak self] in
+            self?.onTogglePersistent?(info.port)
+        })
+        pinButton.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: "常駐")
+        pinButton.isBordered = false
+        pinButton.bezelStyle = .inline
+        pinButton.contentTintColor = isPinned ? .plAccent : .plTextTertiary
+        pinButton.toolTip = "常駐：不會被自動過期關閉"
+        pinButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        pinButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
+
+        // ••• 選單只留 Stop 這種比較「危險」、不想讓使用者手滑點到的動作。
+        let menuButton = ProjectMenuButton()
+        menuButton.widthAnchor.constraint(equalToConstant: 20).isActive = true
+        menuButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
         menuButton.onStop = { [weak self] in self?.onStop?(info) }
 
-        let rightStack = NSStackView(views: [openButton, menuButton])
+        let rightStack = NSStackView(views: [pinButton, openButton, menuButton])
         rightStack.orientation = .horizontal
         rightStack.alignment = .centerY
         rightStack.spacing = 6
@@ -837,69 +872,123 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         return wrapper
     }
 
-    private func makeOthersHeaderRow(_ count: Int) -> NSView {
-        let wrapper = NSView()
-        let button = ClosureButton(onClick: { [weak self] in
-            self?.onToggleOthers?()
-        })
-        let chevronName = showOtherServices ? "chevron.down" : "chevron.right"
-        button.attributedTitle = NSAttributedString(
-            string: "System services (\(count))",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.plTextTertiary
-            ]
-        )
-        button.image = NSImage(systemSymbolName: chevronName, accessibilityDescription: nil)
-        button.imagePosition = .imageTrailing
-        button.isBordered = false
-        button.bezelStyle = .inline
-        button.contentTintColor = .plTextTertiary
-        button.alignment = .left
+}
 
-        wrapper.addSubview(button)
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-            button.trailingAnchor.constraint(lessThanOrEqualTo: wrapper.trailingAnchor),
-            button.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor, constant: 4)
-        ])
-        return wrapper
+// MARK: - Settings window
+
+final class SettingsViewController: NSViewController {
+    var onLanguageChanged: (() -> Void)?
+
+    override func loadView() {
+        let v = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 300))
+        v.wantsLayer = true
+        v.layer?.backgroundColor = NSColor.plWindowBg.cgColor
+        view = v
     }
 
-    private func makeOtherRow(_ info: PortInfo) -> NSView {
-        let wrapper = NSView()
-        let card = RoundedCardView(cornerRadius: 14, fill: .plRowBgMuted)
-        wrapper.addSubview(card)
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let tabView = NSTabView()
+        tabView.translatesAutoresizingMaskIntoConstraints = false
+
+        let generalItem = NSTabViewItem(identifier: "general")
+        generalItem.label = t("settings.general")
+        generalItem.view = buildGeneralTab()
+
+        let aboutItem = NSTabViewItem(identifier: "about")
+        aboutItem.label = t("settings.about")
+        aboutItem.view = buildAboutTab()
+
+        tabView.addTabViewItem(generalItem)
+        tabView.addTabViewItem(aboutItem)
+
+        view.addSubview(tabView)
         NSLayoutConstraint.activate([
-            card.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-            card.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
-            card.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 3),
-            card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -3)
+            tabView.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            tabView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            tabView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            tabView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16)
+        ])
+    }
+
+    private func buildGeneralTab() -> NSView {
+        let container = NSView()
+
+        let label = NSTextField(labelWithString: t("settings.language"))
+        label.font = NSFont.systemFont(ofSize: 13)
+        label.textColor = .plTextPrimary
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.addItem(withTitle: "繁體中文")
+        popup.addItem(withTitle: "English")
+        popup.selectItem(at: AppLanguage.current == .zh ? 0 : 1)
+        popup.target = self
+        popup.action = #selector(languageChanged(_:))
+        popup.translatesAutoresizingMaskIntoConstraints = false
+        popup.widthAnchor.constraint(equalToConstant: 140).isActive = true
+
+        container.addSubview(label)
+        container.addSubview(popup)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: container.topAnchor, constant: 28),
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+            popup.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            popup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -24)
+        ])
+        return container
+    }
+
+    @objc private func languageChanged(_ sender: NSPopUpButton) {
+        AppLanguage.current = sender.indexOfSelectedItem == 0 ? .zh : .en
+        onLanguageChanged?()
+    }
+
+    private func buildAboutTab() -> NSView {
+        let container = NSView()
+
+        let logo = NSImageView(image: moleImage("wordmark-logo") ?? NSImage())
+        logo.imageScaling = .scaleProportionallyUpOrDown
+        logo.translatesAutoresizingMaskIntoConstraints = false
+        if let img = moleImage("wordmark-logo") {
+            let aspect = img.size.width / img.size.height
+            logo.heightAnchor.constraint(equalToConstant: 40).isActive = true
+            logo.widthAnchor.constraint(equalToConstant: 40 * aspect).isActive = true
+        }
+
+        let versionLabel = NSTextField(labelWithString: "v\(currentVersion)")
+        versionLabel.font = NSFont.systemFont(ofSize: 11)
+        versionLabel.textColor = .plTextSecondary
+
+        let githubButton = ClosureButton(onClick: {
+            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
+                NSWorkspace.shared.open(url)
+            }
+        })
+        githubButton.isBordered = false
+        githubButton.bezelStyle = .inline
+        githubButton.attributedTitle = NSAttributedString(string: t("settings.github"), attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+            .foregroundColor: NSColor.plBlueFolder
         ])
 
-        let portLabel = NSTextField(labelWithString: "localhost:\(info.port)")
-        portLabel.font = NSFont.systemFont(ofSize: 11)
-        portLabel.textColor = .plTextSecondary
-        portLabel.translatesAutoresizingMaskIntoConstraints = false
+        let licenseLabel = NSTextField(labelWithString: t("settings.license"))
+        licenseLabel.font = NSFont.systemFont(ofSize: 10)
+        licenseLabel.textColor = .plTextTertiary
 
-        let nameLabel = NSTextField(labelWithString: info.processName)
-        nameLabel.font = NSFont.systemFont(ofSize: 10)
-        nameLabel.textColor = .plTextTertiary
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let stack = NSStackView(views: [portLabel, nameLabel])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
+        let stack = NSStackView(views: [logo, versionLabel, githubButton, licenseLabel])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        card.addSubview(stack)
+        container.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -12),
-            stack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
-        return wrapper
+        return container
     }
 }
 
@@ -915,7 +1004,6 @@ final class MainViewController: NSViewController {
     // 好、我們沒參與偵測的 port 沒有這筆資料，卡片會退回顯示 process 名稱。
     private var launchedProjectNames: [String: String] = [:]
     private var autoExpiredNotice = ""
-    private var showOtherServices = false
     private var isLaunching = false
     private var launchStatus = ""
     private var pollToken = UUID()
@@ -938,12 +1026,13 @@ final class MainViewController: NSViewController {
         Set(persistentPortsRaw.split(separator: ",").map(String.init))
     }
     private var devPorts: [PortInfo] { ports.filter { $0.isDev } }
-    private var otherPorts: [PortInfo] { ports.filter { !$0.isDev } }
 
     private var refreshTimer: Timer?
 
     // MARK: Views
     private let toolbarHost = NSView()
+    private weak var taglineLabel: NSTextField?
+    private var settingsWindow: NSWindow?
     private let topStack = NSStackView()
     private let updateBannerHost = NSView()
     private let heroCardHost = NSView()
@@ -1034,12 +1123,6 @@ final class MainViewController: NSViewController {
         portsTable.onOpen = { [weak self] port in self?.openBrowser(port: port) }
         portsTable.onTogglePersistent = { [weak self] port in self?.togglePersistent(port) }
         portsTable.onStop = { [weak self] info in self?.confirmStop(info) }
-        portsTable.onToggleOthers = { [weak self] in
-            guard let self = self else { return }
-            self.showOtherServices.toggle()
-            self.portsTable.showOtherServices = self.showOtherServices
-            self.portsTable.reload()
-        }
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -1094,47 +1177,58 @@ final class MainViewController: NSViewController {
             titleImage.widthAnchor.constraint(equalToConstant: 22 * aspect).isActive = true
         }
 
-        let tagline = NSTextField(labelWithString: "Drop. Detect. Run.")
+        let tagline = NSTextField(labelWithString: t("tagline"))
         tagline.font = NSFont.systemFont(ofSize: 10)
         tagline.textColor = .plTextTertiary
+        taglineLabel = tagline
 
         let leftStack = NSStackView(views: [titleImage, tagline])
         leftStack.orientation = .horizontal
         leftStack.alignment = .centerY
         leftStack.spacing = 9
 
-        let githubButton = ClosureButton(onClick: {
-            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
-                NSWorkspace.shared.open(url)
-            }
-        })
-        githubButton.isBordered = false
-        githubButton.bezelStyle = .inline
-        githubButton.wantsLayer = true
-        githubButton.layer?.cornerRadius = 6
-        githubButton.toolTip = "在 GitHub 上查看這個專案"
-        githubButton.imagePosition = .imageLeading
-        githubButton.imageScaling = .scaleProportionallyDown
-        if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
-           let nsImage = NSImage(contentsOfFile: path) {
-            nsImage.isTemplate = true
-            githubButton.image = nsImage
-        } else {
-            githubButton.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
-        }
-        githubButton.contentTintColor = .plTextSecondary
-        githubButton.attributedTitle = NSAttributedString(string: "  GitHub", attributes: [
-            .font: NSFont.systemFont(ofSize: 12),
-            .foregroundColor: NSColor.plTextSecondary
-        ])
-        githubButton.heightAnchor.constraint(equalToConstant: 26).isActive = true
+        // GitHub 連結移進 Settings 的「關於」分頁；這裡右上角改成一隻抱著
+        // 扳手的鼴鼠，點下去開 Settings 視窗（語言切換等設定都在裡面）。
+        let settingsButton = ClosureButton(onClick: { [weak self] in self?.showSettings() })
+        settingsButton.isBordered = false
+        settingsButton.bezelStyle = .inline
+        settingsButton.toolTip = t("settings.title")
+        settingsButton.imageScaling = .scaleProportionallyUpOrDown
+        settingsButton.image = moleImage("wrench")
+        settingsButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        settingsButton.heightAnchor.constraint(equalToConstant: 34).isActive = true
 
-        let row = NSStackView(views: [leftStack, NSView(), githubButton])
+        let row = NSStackView(views: [leftStack, NSView(), settingsButton])
         row.orientation = .horizontal
         row.alignment = .centerY
         row.distribution = .fill
         row.setHuggingPriority(.defaultLow, for: .horizontal)
         return row
+    }
+
+    // MARK: Settings
+
+    private func showSettings() {
+        if settingsWindow == nil {
+            let vc = SettingsViewController()
+            vc.onLanguageChanged = { [weak self] in self?.applyLanguageChange() }
+            let win = NSWindow(contentViewController: vc)
+            win.styleMask = [.titled, .closable]
+            win.title = t("settings.title")
+            win.isReleasedWhenClosed = false
+            settingsWindow = win
+        }
+        settingsWindow?.center()
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // 語言切換後即時套用：不用重開 App，直接把還在畫面上的動態內容重建一次。
+    private func applyLanguageChange() {
+        taglineLabel?.stringValue = t("tagline")
+        rebuildHeroCard()
+        rebuildAutoClose()
+        rebuildRunningHeader()
     }
 
     // MARK: Update banner
@@ -1394,15 +1488,15 @@ final class MainViewController: NSViewController {
             digAnim.heightAnchor.constraint(equalToConstant: 80).isActive = true
             digAnim.startAnimating()
 
-            let doodle = NSTextField(labelWithString: "digging⋯")
+            let doodle = NSTextField(labelWithString: t("launch.doodle"))
             doodle.font = NSFont(name: "Noteworthy-Bold", size: 13) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
             doodle.textColor = .plUpdateText
 
-            let title = NSTextField(labelWithString: "正在分析專案")
+            let title = NSTextField(labelWithString: t("launch.title"))
             title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
             title.textColor = .plTextPrimary
 
-            let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? "看看這個資料夾裡藏了什麼" : launchStatus)
+            let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? t("launch.subtitle") : launchStatus)
             status.font = NSFont.systemFont(ofSize: 12)
             status.textColor = .plTextSecondary
             status.alignment = .center
@@ -1421,7 +1515,7 @@ final class MainViewController: NSViewController {
             cancelButton.isBordered = false
             cancelButton.bezelStyle = .inline
             cancelButton.attributedTitle = NSAttributedString(
-                string: "先不等了",
+                string: t("launch.cancel"),
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 11),
                     .foregroundColor: NSColor.plTextSecondary
@@ -1444,15 +1538,15 @@ final class MainViewController: NSViewController {
             mascot.widthAnchor.constraint(equalToConstant: 96).isActive = true
             mascot.heightAnchor.constraint(equalToConstant: 68).isActive = true
 
-            let title = NSTextField(labelWithString: "把專案資料夾拖到這裡")
+            let title = NSTextField(labelWithString: t("drop.title"))
             title.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
             title.textColor = .plTextPrimary
 
-            let subtitle = NSTextField(labelWithString: "不用記指令，我來判斷")
+            let subtitle = NSTextField(labelWithString: t("drop.subtitle"))
             subtitle.font = NSFont.systemFont(ofSize: 12)
             subtitle.textColor = .plTextSecondary
 
-            let chooseButton = PillButton(title: "選擇資料夾", onClick: { [weak self] in self?.chooseFolder() })
+            let chooseButton = PillButton(title: t("drop.button"), onClick: { [weak self] in self?.chooseFolder() })
             chooseButton.heightAnchor.constraint(equalToConstant: 32).isActive = true
             chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 112).isActive = true
 
@@ -1463,7 +1557,7 @@ final class MainViewController: NSViewController {
             contentStack.addArrangedSubview(chooseButton)
 
             if !lastLaunched.isEmpty {
-                let lastLabel = NSTextField(labelWithString: "上次啟動：\(lastLaunched)")
+                let lastLabel = NSTextField(labelWithString: t("drop.lastLaunched") + lastLaunched)
                 lastLabel.font = NSFont.systemFont(ofSize: 10)
                 lastLabel.textColor = .plTextTertiary
                 contentStack.setCustomSpacing(8, after: chooseButton)
@@ -1471,7 +1565,7 @@ final class MainViewController: NSViewController {
             }
 
             // 角落的手寫小提示 + 手繪箭頭，spec 裡唯一允許出現手寫字的地方之一。
-            let doodle = NSTextField(labelWithString: "drag it!")
+            let doodle = NSTextField(labelWithString: t("drop.doodle"))
             doodle.font = NSFont(name: "Noteworthy-Bold", size: 14) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
             doodle.textColor = .plTextTertiary
             doodle.translatesAutoresizingMaskIntoConstraints = false
@@ -1511,15 +1605,15 @@ final class MainViewController: NSViewController {
             dropZone.onHoverChange = { isHovering in
                 if isHovering {
                     mascot.image = moleImage("carry-folder") ?? mascot.image
-                    title.stringValue = "drop it here"
-                    subtitle.stringValue = "我接住了！"
-                    doodle.stringValue = "gimme!"
+                    title.stringValue = t("drop.hover.title")
+                    subtitle.stringValue = t("drop.hover.subtitle")
+                    doodle.stringValue = t("drop.hover.doodle")
                     doodle.textColor = .plUpdateText
                 } else {
                     mascot.image = moleImage("hold-folder-idle") ?? mascot.image
-                    title.stringValue = "把專案資料夾拖到這裡"
-                    subtitle.stringValue = "不用記指令，我來判斷"
-                    doodle.stringValue = "drag it!"
+                    title.stringValue = t("drop.title")
+                    subtitle.stringValue = t("drop.subtitle")
+                    doodle.stringValue = t("drop.doodle")
                     doodle.textColor = .plTextTertiary
                 }
             }
@@ -1531,11 +1625,11 @@ final class MainViewController: NSViewController {
     private func rebuildAutoClose() {
         autoCloseHost.subviews.forEach { $0.removeFromSuperview() }
 
-        let title = NSTextField(labelWithString: "Auto Close")
+        let title = NSTextField(labelWithString: t("autoclose.title"))
         title.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         title.textColor = .plTextPrimary
 
-        let subtitle = NSTextField(labelWithString: "閒置專案將自動關閉")
+        let subtitle = NSTextField(labelWithString: t("autoclose.subtitle"))
         subtitle.font = NSFont.systemFont(ofSize: 11)
         subtitle.textColor = .plTextSecondary
 
@@ -1600,7 +1694,7 @@ final class MainViewController: NSViewController {
     private func rebuildRunningHeader() {
         runningHeaderHost.subviews.forEach { $0.removeFromSuperview() }
 
-        let title = NSTextField(labelWithString: "Running Projects")
+        let title = NSTextField(labelWithString: t("running.title"))
         title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
         title.textColor = .plTextPrimary
 
@@ -1611,7 +1705,7 @@ final class MainViewController: NSViewController {
             killAllButton.isBordered = false
             killAllButton.bezelStyle = .inline
             killAllButton.attributedTitle = NSAttributedString(
-                string: "全部關閉",
+                string: t("running.killAll"),
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 11, weight: .medium),
                     .foregroundColor: NSColor.plDanger
@@ -1779,8 +1873,6 @@ final class MainViewController: NSViewController {
 
     private func syncPortsTable() {
         portsTable.devPorts = devPorts
-        portsTable.otherPorts = otherPorts
-        portsTable.showOtherServices = showOtherServices
         portsTable.persistentPorts = persistentPorts
         portsTable.projectNames = launchedProjectNames
         portsTable.reload()
