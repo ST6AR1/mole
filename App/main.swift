@@ -837,6 +837,12 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         // 讓它該截斷就截斷，位置固定不會受標題長度影響。
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         nameLabel.cell?.truncatesLastVisibleLine = true
+        // 上面那個優先權只對 nameLabel 自己有效，不會往上傳到包著它的 nameRow／
+        // textStack 這兩層 NSStackView（它們有自己的壓縮抵抗優先權，預設偏高）。
+        // 結果就是長標題那排，clickRegion 的寬度計算被這兩層「打折扣」，導致
+        // rightStack 的實際位置跟著跑掉。直接把 nameLabel 釘死在 clickRegion 的
+        // 右邊界，跳過中間兩層 stack 的模糊地帶，才能保證每排都截斷在同一個點。
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
         var nameRowViews: [NSView] = [nameLabel]
         if isPinned {
@@ -933,8 +939,11 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             textStack.leadingAnchor.constraint(equalTo: folderChip.trailingAnchor, constant: 10),
             textStack.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
             textStack.trailingAnchor.constraint(lessThanOrEqualTo: clickRegion.trailingAnchor),
+            // 直接釘住 nameLabel 本人，跳過中間 nameRow/textStack 兩層 NSStackView
+            // 自己的壓縮抵抗優先權（預設偏高，會讓上面那條 <= 沒有真的生效）。
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: clickRegion.trailingAnchor, constant: -4),
 
-            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
             rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
 
