@@ -12,7 +12,7 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.7"
+let currentVersion = "1.0.8"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -226,6 +226,15 @@ func friendlyUptime(_ totalSeconds: Int) -> String {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
 
+    // 徹底關掉 macOS 的「上次意外退出，要不要重新打開視窗」對話框。
+    // 光設定 NSWindow.isRestorable = false 不夠：只要應用程式曾經異常結束過一次，
+    // 系統下次啟動還是會在我們自己的視窗出現「之前」，先跳出這個對話框——
+    // 而且如果使用者點了「Reopen」，還原舊狀態的過程本身又可能再次觸發問題，變成無限循環。
+    // 這個 delegate method 是比 isRestorable 更上層、更權威的開關，直接讓系統不要再問。
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        false
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let hosting = NSHostingController(rootView: ContentView())
         let win = NSWindow(contentViewController: hosting)
@@ -317,6 +326,7 @@ struct SoftFilledButtonStyle: ButtonStyle {
 
 struct ContentView: View {
     @State private var ports: [PortInfo] = []
+    @State private var isRefreshing = false
     @State private var isTargeted = false
     @State private var lastLaunched: String = ""
     @State private var pendingKill: PortInfo?
@@ -687,6 +697,56 @@ struct ContentView: View {
 
     // MARK: Auto Close — inline row, no card
 
+    // SwiftUI 的 Menu 在這台機器的 macOS 版本上會不定時讓 AttributeGraph 崩潰
+    // （已用「拿掉 Menu 後連續跑 90 秒完全不會崩潰」證實），改用原生 NSPopUpButton
+    // 包一層 NSViewRepresentable，完全不走 SwiftUI Menu 那條有問題的路徑。
+    struct ExpireMenuPicker: NSViewRepresentable {
+        @Binding var selection: Int
+        let options: [ExpireOption]
+
+        func makeNSView(context: Context) -> NSPopUpButton {
+            let button = NSPopUpButton(frame: .zero, pullsDown: false)
+            button.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+            button.bezelStyle = .rounded
+            for opt in options {
+                button.addItem(withTitle: opt.label)
+            }
+            button.target = context.coordinator
+            button.action = #selector(Coordinator.selectionChanged(_:))
+            context.coordinator.options = options
+            if let idx = options.firstIndex(where: { $0.minutes == selection }) {
+                button.selectItem(at: idx)
+            }
+            return button
+        }
+
+        func updateNSView(_ nsView: NSPopUpButton, context: Context) {
+            context.coordinator.options = options
+            if let idx = options.firstIndex(where: { $0.minutes == selection }),
+               nsView.indexOfSelectedItem != idx {
+                nsView.selectItem(at: idx)
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(selection: $selection)
+        }
+
+        class Coordinator: NSObject {
+            var selectionBinding: Binding<Int>
+            var options: [ExpireOption] = []
+            init(selection: Binding<Int>) {
+                self.selectionBinding = selection
+            }
+            @objc func selectionChanged(_ sender: NSPopUpButton) {
+                let idx = sender.indexOfSelectedItem
+                if idx >= 0 && idx < options.count {
+                    selectionBinding.wrappedValue = options[idx].minutes
+                }
+            }
+        }
+    }
+
     var currentExpireLabel: String {
         expireOptions.first(where: { $0.minutes == expireMinutes })?.label
             .replacingOccurrences(of: "（預設）", with: "") ?? "\(expireMinutes) 分"
@@ -704,20 +764,8 @@ struct ContentView: View {
                         .foregroundColor(Palette.textSecondary)
                 }
                 Spacer()
-                Menu {
-                    ForEach(expireOptions, id: \.minutes) { opt in
-                        Button(opt.label) { expireMinutes = opt.minutes }
-                    }
-                } label: {
-                    Text(currentExpireLabel)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Palette.textPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.black.opacity(0.05)))
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+                ExpireMenuPicker(selection: $expireMinutes, options: expireOptions)
+                    .frame(width: 130)
             }
             if !autoExpiredNotice.isEmpty {
                 Text(autoExpiredNotice)
@@ -861,13 +909,19 @@ struct ContentView: View {
         .padding(.top, 4)
     }
 
-    // fetchPorts() 會跑 lsof/ps，屬於阻塞式呼叫，一律丟到背景執行緒，避免卡住 UI
+    // fetchPorts() 會跑 lsof + 每個 port 兩次 ps，屬於阻塞式呼叫，一律丟到背景執行緒避免卡住 UI。
+    // 加上 isRefreshing 防止上一輪還沒跑完、下一次 2 秒計時器又觸發，兩輪背景工作同時把結果
+    // 丟回主執行緒，導致短時間內疊加太多次狀態變更（曾經懷疑是這種 transaction 疊加讓
+    // AttributeGraph 在某些 macOS 版本上不穩定，加這個guard 至少能排除這個可能性）。
     func refresh() {
+        guard !isRefreshing else { return }
+        isRefreshing = true
         DispatchQueue.global(qos: .utility).async {
             let fetched = fetchPorts()
             DispatchQueue.main.async {
                 self.ports = fetched
                 self.checkExpiry(fetched)
+                self.isRefreshing = false
             }
         }
     }
