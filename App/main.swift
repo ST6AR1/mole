@@ -852,11 +852,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         // 右邊界，跳過中間兩層 stack 的模糊地帶，才能保證每排都截斷在同一個點。
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        var nameRowViews: [NSView] = [nameLabel]
-        if isPinned {
-            nameRowViews.append(makeBadge(t("project.pinned"), bg: NSColor.plBorder.withAlphaComponent(0.5), fg: .plTextSecondary))
-        }
-        let nameRow = NSStackView(views: nameRowViews)
+        let nameRow = NSStackView(views: [nameLabel])
         nameRow.orientation = .horizontal
         nameRow.alignment = .centerY
         nameRow.spacing = 6
@@ -882,10 +878,16 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         durationLabel.font = NSFont.systemFont(ofSize: 11)
         durationLabel.textColor = .plTextTertiary
 
-        let metaRow = NSStackView(views: [urlButton, dotSeparator(), processBadge, dotSeparator(), runningIndicator, dotSeparator(), durationLabel])
+        // 「常駐」標籤改放在這一排（時間後面），不要跟在標題後面。
+        var metaRowViews: [NSView] = [urlButton, dotSeparator(), processBadge, dotSeparator(), runningIndicator, dotSeparator(), durationLabel]
+        if isPinned {
+            metaRowViews.append(dotSeparator())
+            metaRowViews.append(makeBadge(t("project.pinned"), bg: NSColor.plBorder.withAlphaComponent(0.5), fg: .plTextSecondary))
+        }
+        let metaRow = NSStackView(views: metaRowViews)
         metaRow.orientation = .horizontal
         metaRow.alignment = .centerY
-        metaRow.spacing = 6
+        metaRow.spacing = 4
 
         let textStack = NSStackView(views: [nameRow, metaRow])
         textStack.orientation = .vertical
