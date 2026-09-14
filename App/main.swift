@@ -559,7 +559,25 @@ final class PillButton: ClosureButton {
         self.init(onClick: onClick)
         isBordered = false
         wantsLayer = true
-        layer?.backgroundColor = NSColor.plTextPrimary.cgColor
+        // 底圖優先用使用者提供的手繪藥丸插畫，圖片本身已經是完整的膠囊形狀
+        // （含邊框、留白），直接鋪滿整顆按鈕，找不到圖才退回純色底。用一個
+        // NSImageView 子視圖鋪底，比塞 CALayer.contents 更可靠——後者曾經
+        // 因為型別不對（要 CGImage 不是 NSImage）整個背景消失過一次。
+        if let bg = moleImage("pill-button-bg") {
+            let bgView = NSImageView(image: bg)
+            bgView.imageScaling = .scaleAxesIndependently
+            bgView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(bgView, positioned: .below, relativeTo: nil)
+            NSLayoutConstraint.activate([
+                bgView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                bgView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                bgView.topAnchor.constraint(equalTo: topAnchor),
+                bgView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+        } else {
+            layer?.backgroundColor = NSColor.plTextPrimary.cgColor
+            layer?.cornerRadius = 15
+        }
         attributedTitle = NSAttributedString(string: title, attributes: [
             .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
             .foregroundColor: NSColor.white
@@ -567,11 +585,6 @@ final class PillButton: ClosureButton {
         contentTintColor = .white
     }
     required init?(coder: NSCoder) { fatalError() }
-
-    override func layout() {
-        super.layout()
-        layer?.cornerRadius = bounds.height / 2
-    }
 }
 
 // 小圓角色塊標籤，對應參考稿的 Badge（框架名稱、process name 這類小標籤）。
@@ -1702,8 +1715,8 @@ final class MainViewController: NSViewController {
             subtitle.textColor = .plTextSecondary
 
             let chooseButton = PillButton(title: t("drop.button"), onClick: { [weak self] in self?.chooseFolder() })
-            chooseButton.heightAnchor.constraint(equalToConstant: 32).isActive = true
-            chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 112).isActive = true
+            chooseButton.heightAnchor.constraint(equalToConstant: 34).isActive = true
+            chooseButton.widthAnchor.constraint(equalToConstant: 130).isActive = true
 
             contentStack.addArrangedSubview(mascot)
             contentStack.addArrangedSubview(title)
