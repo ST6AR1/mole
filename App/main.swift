@@ -730,6 +730,14 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             for info in devPorts { r.append(.project(info)) }
         }
         rows = r
+        // 保險：NSTableColumn 的 .autoresizingMask 理論上會跟著 table view 的寬度走，
+        // 但在某些時機（例如還沒收到任何 resize 事件時）不一定真的同步，導致 column
+        // 比實際可視寬度窄，卡片右邊就會多出一截跟版面無關的空白，不管怎麼調卡片
+        // 內部的 padding 常數都不會有視覺差異。每次 reload 都強制把 column 寬度
+        // 對齊 table view 目前的實際寬度，徹底排除這個可能性。
+        if let tv = tableView, let column = tv.tableColumns.first, tv.bounds.width > 0 {
+            column.width = tv.bounds.width
+        }
         tableView?.reloadData()
     }
 
@@ -931,7 +939,13 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             clickRegion.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             clickRegion.topAnchor.constraint(equalTo: card.topAnchor),
             clickRegion.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-            clickRegion.trailingAnchor.constraint(equalTo: rightStack.leadingAnchor, constant: -14),
+            // 直接對 card 算死的常數，不要透過 rightStack.leadingAnchor 串連——
+            // 串連起來會讓 clickRegion 跟 rightStack 互相牽連成一個環狀相依，
+            // 只要 clickRegion 那邊（因為裡面的內容）撐開到跟預期衝突，AutoLayout
+            // 解衝突時可能連帶把 rightStack.trailing 那條「必要」約束一起犧牲掉，
+            // 造成不管怎麼調 rightStack 自己的常數都沒有視覺效果。兩邊分開算，
+            // 各自只跟 card 有關係，才不會互相拖累。
+            clickRegion.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -80),
 
             folderChip.leadingAnchor.constraint(equalTo: clickRegion.leadingAnchor, constant: 12),
             folderChip.centerYAnchor.constraint(equalTo: clickRegion.centerYAnchor),
@@ -957,8 +971,10 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             NSLayoutConstraint.activate([
                 mascot.widthAnchor.constraint(equalToConstant: 34),
                 mascot.heightAnchor.constraint(equalToConstant: 26),
-                mascot.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
-                mascot.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: 4)
+                // 跟 rightStack 共用同一個 trailing 基準，而不是各自對 card 猜一個
+                // 數字——這樣星星/X 永遠會在這隻探頭鼴鼠的正上方，不會左右飄移。
+                mascot.trailingAnchor.constraint(equalTo: rightStack.trailingAnchor),
+                mascot.topAnchor.constraint(equalTo: card.bottomAnchor, constant: -6)
             ])
         }
 
