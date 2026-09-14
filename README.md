@@ -1,8 +1,8 @@
-<p align="center">
-  <img src="icon/mole-poses/wordmark-logo.png" width="180" alt="mole">
-</p>
+<p align="center">別管指令，直接開工。<br>Skip the commands, get to work.</p>
 
-<p align="center"><b>別管指令，直接開工。</b><br>Skip the commands, get to work.</p>
+<p align="center">
+  <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
+</p>
 
 <p align="center">
   <img src="docs/screenshots/main.png" width="480" alt="mole 主畫面：把專案資料夾拖進去，自動偵測並啟動">
