@@ -313,7 +313,7 @@ enum AppLanguage: String {
 }
 
 private let localizedStrings: [String: [AppLanguage: String]] = [
-    "tagline": [.zh: "拖曳・偵測・執行", .en: "Drop. Detect. Run."],
+    "tagline": [.zh: "別管指令，直接開工", .en: "Drop. Detect. Run."],
     "drop.title": [.zh: "把專案資料夾拖到這裡", .en: "Drop your project folder here"],
     "drop.subtitle": [.zh: "不用記指令，我來判斷", .en: "No commands to remember, I'll figure it out"],
     "drop.button": [.zh: "選擇資料夾", .en: "Choose Folder"],
