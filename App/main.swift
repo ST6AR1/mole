@@ -1094,8 +1094,8 @@ final class SettingsViewController: NSViewController {
         logo.translatesAutoresizingMaskIntoConstraints = false
         if let img = moleImage("wordmark-logo") {
             let aspect = img.size.width / img.size.height
-            logo.heightAnchor.constraint(equalToConstant: 22).isActive = true
-            logo.widthAnchor.constraint(equalToConstant: 22 * aspect).isActive = true
+            logo.heightAnchor.constraint(equalToConstant: 34).isActive = true
+            logo.widthAnchor.constraint(equalToConstant: 34 * aspect).isActive = true
         }
 
         let centerStack = NSStackView(views: [illustration, logo])
