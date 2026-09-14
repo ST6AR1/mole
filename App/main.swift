@@ -565,7 +565,7 @@ final class PillButton: ClosureButton {
         // 因為型別不對（要 CGImage 不是 NSImage）整個背景消失過一次。
         if let bg = moleImage("pill-button-bg") {
             let bgView = NSImageView(image: bg)
-            bgView.imageScaling = .scaleAxesIndependently
+            bgView.imageScaling = .scaleProportionallyUpOrDown
             bgView.translatesAutoresizingMaskIntoConstraints = false
             addSubview(bgView, positioned: .below, relativeTo: nil)
             NSLayoutConstraint.activate([
@@ -1715,8 +1715,12 @@ final class MainViewController: NSViewController {
             subtitle.textColor = .plTextSecondary
 
             let chooseButton = PillButton(title: t("drop.button"), onClick: { [weak self] in self?.chooseFolder() })
-            chooseButton.heightAnchor.constraint(equalToConstant: 34).isActive = true
-            chooseButton.widthAnchor.constraint(equalToConstant: 130).isActive = true
+            // 按鈕的寬高比例照插畫本身的比例（裁切後 1274:568 ≈ 2.24:1）算，
+            // 不要硬塞一個跟圖片比例不符的框、把圖擠壓變形。
+            // 90pt 寬在中文「選擇資料夾」還好，切到英文「Choose Folder」就會被切字，
+            // 所以稍微加寬，高度照比例（2.24:1）一起放大，維持不變形。
+            chooseButton.heightAnchor.constraint(equalToConstant: 54).isActive = true
+            chooseButton.widthAnchor.constraint(equalToConstant: 120).isActive = true
 
             contentStack.addArrangedSubview(mascot)
             contentStack.addArrangedSubview(title)
