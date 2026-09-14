@@ -832,6 +832,11 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         nameLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         nameLabel.textColor = .plTextPrimary
         nameLabel.lineBreakMode = .byTruncatingTail
+        // 長標題（例如抓到的網頁 <title>）如果不強制壓縮，會把整排往右推、
+        // 連帶讓 pin/stop 圖示位置跟著跑掉，不同卡片對不齊。降低抗壓縮優先權，
+        // 讓它該截斷就截斷，位置固定不會受標題長度影響。
+        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nameLabel.cell?.truncatesLastVisibleLine = true
 
         var nameRowViews: [NSView] = [nameLabel]
         if isPinned {

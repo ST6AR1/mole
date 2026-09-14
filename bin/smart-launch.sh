@@ -344,9 +344,9 @@ LOG_FILE="/tmp/smartlaunch-latest.log"
 } > "$TMP_SCRIPT"
 chmod +x "$TMP_SCRIPT"
 
-osascript <<EOF
-tell application "Terminal"
-  activate
-  do script "bash $(printf '%q' "$TMP_SCRIPT")"
-end tell
-EOF
+# 改成完全在背景跑，不再開 Terminal 視窗——每次啟動都會多一個新視窗、Stop 也不會
+# 把視窗關掉，用久了 Terminal 視窗會一路疊起來。輸出已經用上面的 tee 寫進
+# LOG_FILE，GUI 本來就是讀那個檔案顯示狀態，不需要真的看得到 Terminal 視窗。
+# nohup + disown 讓這個子行程徹底脫離目前這個 shell，不會因為呼叫端結束而被殺掉。
+nohup bash "$TMP_SCRIPT" > /dev/null 2>&1 &
+disown
