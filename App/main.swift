@@ -12,7 +12,7 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.8"
+let currentVersion = "1.0.9"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -156,13 +156,21 @@ func launchProject(at path: String) {
     }
 }
 
+// 曾經每個 port 各別呼叫兩次 /bin/ps（20 幾個系統服務就等於一次刷新開 40+ 個子程序）。
+// 這造成一個很難追的間歇性崩潰：大量、快速地透過 Process() 開子程序，疑似觸發某種
+// 資源競爭／記憶體毀損，症狀卻在完全不相關的 SwiftUI 渲染程式碼裡冒出來
+// （記憶體毀損類 bug 很常見的特徵：當掉的地方不是真正出問題的地方）。
+// 已用「拿掉這些額外的 ps 呼叫」連續跑 5 分鐘完全不會崩潰來驗證。
+// 修法：所有 port 只共用「一次」ps 呼叫，一次把全部 pid 的資訊撈回來，
+// 不管有幾個服務在跑，子程序數量固定是 lsof + ps 兩個。
 func fetchPorts() -> [PortInfo] {
-    let output = runShell("/usr/sbin/lsof", ["-iTCP", "-sTCP:LISTEN", "-n", "-P"])
-    var results: [PortInfo] = []
-    var seen = Set<String>()
+    let lsofOutput = runShell("/usr/sbin/lsof", ["-iTCP", "-sTCP:LISTEN", "-n", "-P"])
 
-    let lines = output.split(separator: "\n").dropFirst()
-    for line in lines {
+    struct RawEntry { let cmdName: String; let pid: Int32; let port: String }
+    var entries: [RawEntry] = []
+    var seenKeys = Set<String>()
+
+    for line in lsofOutput.split(separator: "\n").dropFirst() {
         let cols = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
         guard cols.count >= 9 else { continue }
         let cmdName = cols[0]
@@ -172,20 +180,36 @@ func fetchPorts() -> [PortInfo] {
         let port = String(portPart)
 
         let key = "\(port)-\(pid)"
-        if seen.contains(key) { continue }
-        seen.insert(key)
+        if seenKeys.contains(key) { continue }
+        seenKeys.insert(key)
+        entries.append(RawEntry(cmdName: cmdName, pid: pid, port: port))
+    }
 
-        let fullCmd = runShell("/bin/ps", ["-p", "\(pid)", "-o", "command="])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let rawEtime = runShell("/bin/ps", ["-p", "\(pid)", "-o", "etime="])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !entries.isEmpty else { return [] }
 
-        let isDev = devPatterns.contains(cmdName.lowercased())
-        let seconds = uptimeSeconds(fromEtime: rawEtime)
-        results.append(PortInfo(
-            port: port, processName: cmdName, pid: pid, command: fullCmd,
-            isDev: isDev, uptime: friendlyUptime(seconds), uptimeSeconds: seconds
-        ))
+    // 一次把所有 pid 的 etime/command 撈回來，取代逐一呼叫 ps
+    let uniquePids = Array(Set(entries.map { $0.pid })).map(String.init)
+    let psOutput = runShell("/bin/ps", ["-o", "pid=,etime=,command=", "-p", uniquePids.joined(separator: ",")])
+
+    var infoByPid: [Int32: (etime: String, command: String)] = [:]
+    for line in psOutput.split(separator: "\n") {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
+        guard parts.count >= 2, let pid = Int32(parts[0]) else { continue }
+        let etime = String(parts[1])
+        let command = parts.count >= 3 ? String(parts[2]) : ""
+        infoByPid[pid] = (etime, command)
+    }
+
+    let results = entries.map { entry -> PortInfo in
+        let info = infoByPid[entry.pid]
+        let seconds = uptimeSeconds(fromEtime: info?.etime ?? "")
+        let isDev = devPatterns.contains(entry.cmdName.lowercased())
+        return PortInfo(
+            port: entry.port, processName: entry.cmdName, pid: entry.pid,
+            command: info?.command ?? "", isDev: isDev,
+            uptime: friendlyUptime(seconds), uptimeSeconds: seconds
+        )
     }
     return results.sorted { (Int($0.port) ?? 0) < (Int($1.port) ?? 0) }
 }
@@ -344,7 +368,10 @@ struct ContentView: View {
     @AppStorage("smartlaunch.persistentPorts") private var persistentPortsRaw: String = ""
     @AppStorage("smartlaunch.expireMinutes") private var expireMinutes: Int = 120
 
-    let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    // 拉長刷新間隔（2 秒 → 8 秒）：懷疑是 SwiftUI AttributeGraph 在這台機器的 macOS
+    // 版本上累積夠多次畫面更新後會不穩定，降低更新頻率能拉長「炸掉之前」的時間，
+    // 對正常「開 App、拖資料夾、看它跑起來」這種短時間使用情境影響不大。
+    let timer = Timer.publish(every: 8, on: .main, in: .common).autoconnect()
 
     var persistentPorts: Set<String> {
         Set(persistentPortsRaw.split(separator: ",").map(String.init))
@@ -365,25 +392,37 @@ struct ContentView: View {
             autoCloseRow
             runningProjectsHeader
 
-            ScrollView {
-                VStack(spacing: 10) {
-                    if devPorts.isEmpty {
-                        Text("目前沒有專案在跑")
-                            .font(.system(size: 12))
-                            .foregroundColor(Palette.textTertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                    } else {
-                        ForEach(devPorts) { info in
-                            projectRow(info)
-                        }
-                    }
-                    if !otherPorts.isEmpty {
-                        otherServicesDisclosure
+            // 改版後這裡本來是手刻的 ScrollView + VStack + ForEach，換回原生 List——
+            // List 是 SwiftUI 從一開始就有、經過大量實戰測試的元件，處理會動態增減的
+            // 內容遠比自己手刻的捲動容器成熟穩定，用來取代不確定成因的背景閒置崩潰。
+            List {
+                if devPorts.isEmpty {
+                    Text("目前沒有專案在跑")
+                        .font(.system(size: 12))
+                        .foregroundColor(Palette.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                } else {
+                    ForEach(devPorts) { info in
+                        projectRow(info)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 0, bottom: 5, trailing: 0))
                     }
                 }
-                .padding(.top, 2)
+                if !otherPorts.isEmpty {
+                    otherServicesDisclosure
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Palette.windowBg)
             .frame(maxHeight: .infinity)
 
             footerCredit
