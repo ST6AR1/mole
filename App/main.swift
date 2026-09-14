@@ -1035,10 +1035,25 @@ final class SettingsViewController: NSViewController {
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 22),
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 22),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -22)
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -78)
         ])
         for field in [heading, p1, p2, p3, closing] {
             field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
+
+        // 右上角放一隻在電腦前工作的鼴鼠插畫，呼應這頁講的「為什麼做這個工具」。
+        if let laptopImage = moleImage("laptop-papers") {
+            let illustration = NSImageView(image: laptopImage)
+            illustration.imageScaling = .scaleProportionallyUpOrDown
+            illustration.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(illustration)
+            let aspect = laptopImage.size.width / laptopImage.size.height
+            NSLayoutConstraint.activate([
+                illustration.topAnchor.constraint(equalTo: container.topAnchor, constant: 20),
+                illustration.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+                illustration.widthAnchor.constraint(equalToConstant: 60),
+                illustration.heightAnchor.constraint(equalToConstant: 60 / aspect)
+            ])
         }
         return container
     }
@@ -1068,6 +1083,21 @@ final class SettingsViewController: NSViewController {
             popup.centerYAnchor.constraint(equalTo: label.centerYAnchor),
             popup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -24)
         ])
+
+        // 右上角放一隻拿扳手的鼴鼠，呼應「設定」這個主題。
+        if let wrenchImage = moleImage("wrench") {
+            let illustration = NSImageView(image: wrenchImage)
+            illustration.imageScaling = .scaleProportionallyUpOrDown
+            illustration.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(illustration)
+            let aspect = wrenchImage.size.width / wrenchImage.size.height
+            NSLayoutConstraint.activate([
+                illustration.topAnchor.constraint(equalTo: container.topAnchor, constant: 20),
+                illustration.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+                illustration.widthAnchor.constraint(equalToConstant: 56),
+                illustration.heightAnchor.constraint(equalToConstant: 56 / aspect)
+            ])
+        }
         return container
     }
 
