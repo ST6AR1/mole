@@ -313,7 +313,7 @@ enum AppLanguage: String {
 }
 
 private let localizedStrings: [String: [AppLanguage: String]] = [
-    "tagline": [.zh: "別管指令，直接開工", .en: "Drop. Detect. Run."],
+    "tagline": [.zh: "別管指令，直接開工", .en: "Skip the commands, get to work."],
     "drop.title": [.zh: "把專案資料夾拖到這裡", .en: "Drop your project folder here"],
     "drop.subtitle": [.zh: "不用記指令，我來判斷", .en: "No commands to remember, I'll figure it out"],
     "drop.button": [.zh: "選擇資料夾", .en: "Choose Folder"],
@@ -334,6 +334,12 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "settings.title": [.zh: "設定", .en: "Settings"],
     "settings.general": [.zh: "一般", .en: "General"],
     "settings.about": [.zh: "關於", .en: "About"],
+    "settings.story": [.zh: "故事", .en: "Story"],
+    "story.heading": [.zh: "為什麼做這個 App？", .en: "Why I made this app"],
+    "story.p1": [.zh: "我不是專業開發者。Vibe coding 做久了，專案越來越多，啟動指令記不住，連 localhost 開了哪些也常常搞不清楚。", .en: "I'm not a professional developer. After a lot of vibe coding, I ended up with more and more projects, couldn't remember the start commands, and kept losing track of which localhost ports were even running."],
+    "story.p2": [.zh: "我又不想每次只是為了重新把專案跑起來，就再問一次 AI。", .en: "And I didn't want to ask an AI all over again just to get a project running."],
+    "story.p3": [.zh: "所以做了 mole。把資料夾丟進來，剩下交給它。", .en: "So I made mole. Drop in the folder, and it takes care of the rest."],
+    "story.closing": [.zh: "別管指令，直接開工。", .en: "Skip the commands, get to work."],
     "settings.language": [.zh: "語言", .en: "Language"],
     "settings.github": [.zh: "在 GitHub 上查看", .en: "View on GitHub"],
     "settings.license": [.zh: "MIT 授權", .en: "MIT License"],
@@ -951,9 +957,13 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
 final class SettingsViewController: NSViewController {
     var onLanguageChanged: (() -> Void)?
+    private let tabView = NSTabView()
+    private var generalItem: NSTabViewItem!
+    private var storyItem: NSTabViewItem!
+    private var aboutItem: NSTabViewItem!
 
     override func loadView() {
-        let v = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 300))
+        let v = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 380))
         v.wantsLayer = true
         v.layer?.backgroundColor = NSColor.plWindowBg.cgColor
         view = v
@@ -962,19 +972,15 @@ final class SettingsViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let tabView = NSTabView()
         tabView.translatesAutoresizingMaskIntoConstraints = false
 
-        let generalItem = NSTabViewItem(identifier: "general")
-        generalItem.label = t("settings.general")
-        generalItem.view = buildGeneralTab()
-
-        let aboutItem = NSTabViewItem(identifier: "about")
-        aboutItem.label = t("settings.about")
-        aboutItem.view = buildAboutTab()
-
+        generalItem = NSTabViewItem(identifier: "general")
+        storyItem = NSTabViewItem(identifier: "story")
+        aboutItem = NSTabViewItem(identifier: "about")
         tabView.addTabViewItem(generalItem)
+        tabView.addTabViewItem(storyItem)
         tabView.addTabViewItem(aboutItem)
+        refreshLocalizedContent()
 
         view.addSubview(tabView)
         NSLayoutConstraint.activate([
@@ -983,6 +989,57 @@ final class SettingsViewController: NSViewController {
             tabView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             tabView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16)
         ])
+    }
+
+    // 語言選單就在這個視窗裡面，所以切換當下這個視窗自己的分頁標題、視窗標題、
+    // 內容都要跟著重建一次，不能只靠「下次打開才是新語言」。
+    private func refreshLocalizedContent() {
+        view.window?.title = t("settings.title")
+        generalItem.label = t("settings.general")
+        generalItem.view = buildGeneralTab()
+        storyItem.label = t("settings.story")
+        storyItem.view = buildStoryTab()
+        aboutItem.label = t("settings.about")
+        aboutItem.view = buildAboutTab()
+    }
+
+    private func buildStoryTab() -> NSView {
+        let container = NSView()
+
+        let heading = NSTextField(wrappingLabelWithString: t("story.heading"))
+        heading.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
+        heading.textColor = .plTextPrimary
+
+        let p1 = NSTextField(wrappingLabelWithString: t("story.p1"))
+        let p2 = NSTextField(wrappingLabelWithString: t("story.p2"))
+        let p3 = NSTextField(wrappingLabelWithString: t("story.p3"))
+        for field in [p1, p2, p3] {
+            field.font = NSFont.systemFont(ofSize: 12)
+            field.textColor = .plTextSecondary
+        }
+
+        let closing = NSTextField(wrappingLabelWithString: t("story.closing"))
+        closing.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        closing.textColor = .plTextPrimary
+
+        let stack = NSStackView(views: [heading, p1, p2, p3, closing])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.setCustomSpacing(6, after: heading)
+        stack.setCustomSpacing(18, after: p3)
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 22),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 22),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -22)
+        ])
+        for field in [heading, p1, p2, p3, closing] {
+            field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
+        return container
     }
 
     private func buildGeneralTab() -> NSView {
@@ -1016,6 +1073,7 @@ final class SettingsViewController: NSViewController {
     @objc private func languageChanged(_ sender: NSPopUpButton) {
         AppLanguage.current = sender.indexOfSelectedItem == 0 ? .zh : .en
         onLanguageChanged?()
+        refreshLocalizedContent()
     }
 
     private func buildAboutTab() -> NSView {
