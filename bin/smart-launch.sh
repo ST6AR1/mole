@@ -121,6 +121,43 @@ if [ -f package.json ]; then
   fi
 fi
 
+# 1b. Monorepo：根目錄的 package.json 沒有可執行的 dev/start/serve（例如只是個共用 library），
+#     但常見的子資料夾自己有一份 package.json 而且可以跑，例如 Tauri/Electron 專案常見的
+#     根目錄 = 共用程式碼、desktop/ = 桌面 App、web/ = 前端
+if [ -z "$CMD" ]; then
+  for sub in desktop app client frontend web packages/desktop packages/app packages/web; do
+    SUBDIR="$DIR/$sub"
+    [ -f "$SUBDIR/package.json" ] || continue
+
+    SUB_SCRIPT=""
+    for s in dev start serve; do
+      if grep -qE "\"$s\"[[:space:]]*:" "$SUBDIR/package.json" 2>/dev/null; then
+        SUB_SCRIPT="$s"
+        break
+      fi
+    done
+    [ -n "$SUB_SCRIPT" ] || continue
+
+    if [ -f "$SUBDIR/pnpm-lock.yaml" ]; then
+      SUB_PM="pnpm"; SUB_RUN="pnpm run $SUB_SCRIPT"; SUB_INSTALL="pnpm install"
+    elif [ -f "$SUBDIR/yarn.lock" ]; then
+      SUB_PM="yarn"; SUB_RUN="yarn $SUB_SCRIPT"; SUB_INSTALL="yarn install"
+    elif [ -f "$SUBDIR/bun.lockb" ]; then
+      SUB_PM="bun"; SUB_RUN="bun run $SUB_SCRIPT"; SUB_INSTALL="bun install"
+    else
+      SUB_PM="npm"; SUB_RUN="npm run $SUB_SCRIPT"; SUB_INSTALL="npm install"
+    fi
+
+    if [ -d "$SUBDIR/node_modules" ]; then
+      CMD="cd $(printf '%q' "$sub") && $SUB_RUN"
+    else
+      CMD="cd $(printf '%q' "$sub") && $SUB_INSTALL && $SUB_RUN"
+    fi
+    LABEL="Node.js 子專案 ($sub, $SUB_PM)"
+    break
+  done
+fi
+
 # 2. docker-compose（package.json 沒有可用的 dev/start/serve 時，才單獨啟動 docker）
 if [ -z "$CMD" ] && { [ -f docker-compose.yml ] || [ -f compose.yaml ] || [ -f compose.yml ]; }; then
   CMD="if ! docker info >/dev/null 2>&1; then echo '>> Docker 尚未啟動，正在打開 Docker Desktop...'; open -a Docker 2>/dev/null; printf '>> 等待 Docker 就緒'; i=0; until docker info >/dev/null 2>&1 || [ \$i -ge 60 ]; do printf '.'; sleep 1; i=\$((i+1)); done; echo; if docker info >/dev/null 2>&1; then echo '>> Docker 已就緒'; else echo '>> 等待逾時，請確認已安裝並手動啟動 Docker Desktop'; fi; fi; docker compose up"

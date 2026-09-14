@@ -4,7 +4,14 @@ import Darwin
 
 // MARK: - Version check
 
-let currentVersion = "1.0.3"
+// 用一個真正 Equatable 的 struct 而不是 tuple 放進 @State——tuple 不是 Equatable，
+// 曾經造成 SwiftUI 在比較新舊狀態時內部崩潰（AttributeGraph / BodyAccessor 相關的 crash）。
+struct UpdateInfo: Equatable {
+    let version: String
+    let url: URL
+}
+
+let currentVersion = "1.0.4"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -40,7 +47,7 @@ func checkForUpdate(completion: @escaping (String, URL) -> Void) {
 
 // MARK: - Model
 
-struct PortInfo: Identifiable {
+struct PortInfo: Identifiable, Equatable {
     var id: String { "\(port)-\(pid)" }
     let port: String
     let processName: String
@@ -299,7 +306,7 @@ struct ContentView: View {
     @State private var isLaunching = false
     @State private var launchStatus: String = ""
     @State private var pollToken = UUID()
-    @State private var updateAvailable: (version: String, url: URL)?
+    @State private var updateAvailable: UpdateInfo?
 
     // 記住哪些 port 設為「保持背景常駐」(跨重啟保留)，以及全域自動過期時間
     @AppStorage("smartlaunch.persistentPorts") private var persistentPortsRaw: String = ""
@@ -356,7 +363,7 @@ struct ContentView: View {
         .onAppear {
             checkForUpdate { version, url in
                 DispatchQueue.main.async {
-                    updateAvailable = (version, url)
+                    updateAvailable = UpdateInfo(version: version, url: url)
                 }
             }
         }
@@ -450,7 +457,7 @@ struct ContentView: View {
         }
     }
 
-    func updateBanner(_ update: (version: String, url: URL)) -> some View {
+    func updateBanner(_ update: UpdateInfo) -> some View {
         HStack {
             Text("🎉 有新版本 v\(update.version) 可下載")
                 .font(.system(size: 12))
@@ -510,10 +517,8 @@ struct ContentView: View {
                 .fill(Palette.heroBg)
                 .overlay(
                     RoundedRectangle(cornerRadius: 30)
-                        .strokeBorder(
-                            isTargeted ? AnyShapeStyle(dragGradient) : AnyShapeStyle(Color.clear),
-                            lineWidth: 2
-                        )
+                        .strokeBorder(dragGradient, lineWidth: 2)
+                        .opacity(isTargeted ? 1 : 0)
                 )
         )
         .shadow(color: Color.black.opacity(0.05), radius: 24, x: 0, y: 10)
@@ -729,13 +734,10 @@ struct ContentView: View {
 
     func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-            var url: URL?
-            if let data = item as? Data {
-                url = URL(dataRepresentation: data, relativeTo: nil)
-            } else if let u = item as? URL {
-                url = u
-            }
+        // loadObject(ofClass: URL.self) 是 Apple 建議的現代 API，比手動用 "public.file-url"
+        // 字串比對更可靠，對雲端硬碟（Dropbox/iCloud 等 File Provider）掛載的資料夾支援也比較好。
+        guard provider.canLoadObject(ofClass: URL.self) else { return false }
+        _ = provider.loadObject(ofClass: URL.self) { url, _ in
             guard let folderURL = url else { return }
             DispatchQueue.main.async {
                 lastLaunched = folderURL.lastPathComponent
@@ -813,7 +815,9 @@ struct ContentView: View {
             return
         }
         Thread.sleep(forTimeInterval: 1)
-        guard pollToken == token else { return }
+        var stillCurrent = true
+        DispatchQueue.main.sync { stillCurrent = (self.pollToken == token) }
+        guard stillCurrent else { return }
 
         let elapsed = pollMaxAttempts - attemptsLeft + 1
         let logLine = lastLogLine()
