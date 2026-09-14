@@ -1041,7 +1041,7 @@ final class SettingsViewController: NSViewController {
             field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
 
-        // 右上角放一隻在電腦前工作的鼴鼠插畫，呼應這頁講的「為什麼做這個工具」。
+        // 右下角放一隻在電腦前工作的鼴鼠插畫，呼應這頁講的「為什麼做這個工具」。
         if let laptopImage = moleImage("laptop-papers") {
             let illustration = NSImageView(image: laptopImage)
             illustration.imageScaling = .scaleProportionallyUpOrDown
@@ -1049,7 +1049,7 @@ final class SettingsViewController: NSViewController {
             container.addSubview(illustration)
             let aspect = laptopImage.size.width / laptopImage.size.height
             NSLayoutConstraint.activate([
-                illustration.topAnchor.constraint(equalTo: container.topAnchor, constant: 20),
+                illustration.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -20),
                 illustration.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
                 illustration.widthAnchor.constraint(equalToConstant: 60),
                 illustration.heightAnchor.constraint(equalToConstant: 60 / aspect)
@@ -1084,7 +1084,7 @@ final class SettingsViewController: NSViewController {
             popup.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -24)
         ])
 
-        // 右上角放一隻拿扳手的鼴鼠，呼應「設定」這個主題。
+        // 右下角放一隻拿扳手的鼴鼠，呼應「設定」這個主題。
         if let wrenchImage = moleImage("wrench") {
             let illustration = NSImageView(image: wrenchImage)
             illustration.imageScaling = .scaleProportionallyUpOrDown
@@ -1092,7 +1092,7 @@ final class SettingsViewController: NSViewController {
             container.addSubview(illustration)
             let aspect = wrenchImage.size.width / wrenchImage.size.height
             NSLayoutConstraint.activate([
-                illustration.topAnchor.constraint(equalTo: container.topAnchor, constant: 20),
+                illustration.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -20),
                 illustration.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
                 illustration.widthAnchor.constraint(equalToConstant: 56),
                 illustration.heightAnchor.constraint(equalToConstant: 56 / aspect)
