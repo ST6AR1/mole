@@ -9,8 +9,8 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.10"
-let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
+let currentVersion = "1.0.0"
+let releasesAPI = "https://api.github.com/repos/ST6AR1/mole/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
 func isVersion(_ a: String, newerThan b: String) -> Bool {
@@ -1094,7 +1094,7 @@ final class SettingsViewController: NSViewController {
 
         // 左下：小一點的 GitHub 圖示 + 版本號。
         let githubButton = ClosureButton(onClick: {
-            if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
+            if let url = URL(string: "https://github.com/ST6AR1/mole") {
                 NSWorkspace.shared.open(url)
             }
         })
