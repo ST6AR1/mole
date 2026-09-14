@@ -1,18 +1,15 @@
-import SwiftUI
 import AppKit
 import Darwin
 
 // MARK: - Version check
 
-// 用一個真正 Equatable 的 struct 而不是 tuple 放進 @State——tuple 不是 Equatable，
-// 曾經造成 SwiftUI 在比較新舊狀態時內部崩潰（AttributeGraph / BodyAccessor 相關的 crash）。
 struct UpdateInfo: Equatable {
     let version: String
     let releasePageURL: URL
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.9"
+let currentVersion = "1.0.10"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/smart-launch/releases/latest"
 
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
@@ -59,7 +56,7 @@ func checkForUpdate(completion: @escaping (UpdateInfo) -> Void) {
 
 // MARK: - Model
 
-struct PortInfo: Identifiable, Equatable {
+struct PortInfo: Equatable {
     var id: String { "\(port)-\(pid)" }
     let port: String
     let processName: String
@@ -70,10 +67,7 @@ struct PortInfo: Identifiable, Equatable {
     let uptimeSeconds: Int
 }
 
-// tuple 陣列在 ForEach 裡被 SwiftUI/AttributeGraph 比較新舊值時，在這個 macOS 版本上
-// 會直接崩潰（EXC_BAD_ACCESS in Array<A>.==）。跟 UpdateInfo 那次是同一類問題，
-// 這次影響範圍更大：Auto Close 這個選單在 App 一開啟就會渲染，所以是「一開就閃退」。
-struct ExpireOption: Equatable {
+struct ExpireOption {
     let label: String
     let minutes: Int
 }
@@ -156,12 +150,7 @@ func launchProject(at path: String) {
     }
 }
 
-// 曾經每個 port 各別呼叫兩次 /bin/ps（20 幾個系統服務就等於一次刷新開 40+ 個子程序）。
-// 這造成一個很難追的間歇性崩潰：大量、快速地透過 Process() 開子程序，疑似觸發某種
-// 資源競爭／記憶體毀損，症狀卻在完全不相關的 SwiftUI 渲染程式碼裡冒出來
-// （記憶體毀損類 bug 很常見的特徵：當掉的地方不是真正出問題的地方）。
-// 已用「拿掉這些額外的 ps 呼叫」連續跑 5 分鐘完全不會崩潰來驗證。
-// 修法：所有 port 只共用「一次」ps 呼叫，一次把全部 pid 的資訊撈回來，
+// 所有 port 只共用「一次」ps 呼叫，一次把全部 pid 的資訊撈回來，
 // 不管有幾個服務在跑，子程序數量固定是 lsof + ps 兩個。
 func fetchPorts() -> [PortInfo] {
     let lsofOutput = runShell("/usr/sbin/lsof", ["-iTCP", "-sTCP:LISTEN", "-n", "-P"])
@@ -245,331 +234,650 @@ func friendlyUptime(_ totalSeconds: Int) -> String {
     return "已運行 \(seconds) 秒"
 }
 
-// MARK: - App
-
-class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: NSWindow!
-
-    // 徹底關掉 macOS 的「上次意外退出，要不要重新打開視窗」對話框。
-    // 光設定 NSWindow.isRestorable = false 不夠：只要應用程式曾經異常結束過一次，
-    // 系統下次啟動還是會在我們自己的視窗出現「之前」，先跳出這個對話框——
-    // 而且如果使用者點了「Reopen」，還原舊狀態的過程本身又可能再次觸發問題，變成無限循環。
-    // 這個 delegate method 是比 isRestorable 更上層、更權威的開關，直接讓系統不要再問。
-    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
-        false
-    }
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        let hosting = NSHostingController(rootView: ContentView())
-        let win = NSWindow(contentViewController: hosting)
-        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        win.titlebarAppearsTransparent = true
-        win.titleVisibility = .hidden
-        win.isRestorable = false
-        win.setFrameAutosaveName("")
-        win.isReleasedWhenClosed = false
-        win.minSize = NSSize(width: 480, height: 620)
-
-        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: 480, height: 680)
-        let origin = NSPoint(
-            x: screenFrame.midX - size.width / 2,
-            y: screenFrame.midY - size.height / 2
-        )
-        win.setFrame(NSRect(origin: origin, size: size), display: true)
-
-        window = win
-
-        NSApp.setActivationPolicy(.regular)
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
-    }
-
-    // 拖到 Dock 圖示或用「打開檔案」開啟資料夾時觸發
-    func application(_ application: NSApplication, open urls: [URL]) {
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        for url in urls {
-            launchProject(at: url.path)
-        }
-    }
+func shortUptime(_ totalSeconds: Int) -> String {
+    let days = totalSeconds / 86400
+    let hours = (totalSeconds % 86400) / 3600
+    let minutes = (totalSeconds % 3600) / 60
+    if days > 0 { return "\(days) d" }
+    if hours > 0 { return "\(hours) hr" }
+    if minutes > 0 { return "\(minutes) min" }
+    return "< 1 min"
 }
-
-let delegate = AppDelegate()
-let app = NSApplication.shared
-app.setActivationPolicy(.regular)
-app.delegate = delegate
-app.run()
 
 // MARK: - Design tokens
 
-enum Palette {
-    static let windowBg = Color(red: 0.953, green: 0.949, blue: 0.937)      // #F3F2EF
-    static let heroBg = Color(red: 0.992, green: 0.992, blue: 0.984)        // #FDFDFB
-    static let rowBg = Color(red: 0.973, green: 0.969, blue: 0.953)         // #F8F7F3
-    static let rowBgMuted = Color(red: 0.961, green: 0.957, blue: 0.941)    // #F5F4F0
-    static let textPrimary = Color(red: 0.110, green: 0.110, blue: 0.118)   // #1C1C1E
-    static let textSecondary = Color(red: 0.557, green: 0.557, blue: 0.576) // #8E8E93
-    static let textTertiary = Color(red: 0.690, green: 0.686, blue: 0.675)  // #B0AFAC
-    static let danger = Color(red: 0.753, green: 0.224, blue: 0.169)        // #C0392B
-    static let localhostText = Color(red: 0.227, green: 0.227, blue: 0.235) // #3A3A3C
-    static let updateBg = Color(red: 0.933, green: 0.945, blue: 0.965)      // #EEF1F6
-    static let updateText = Color(red: 0.227, green: 0.353, blue: 0.549)    // #3A5A8C
-    static let primaryButtonBg = Color(red: 0.941, green: 0.937, blue: 0.925) // #F0EFEC
+extension NSColor {
+    static let plWindowBg = NSColor(calibratedRed: 0.953, green: 0.949, blue: 0.937, alpha: 1)
+    static let plHeroBg = NSColor(calibratedRed: 0.992, green: 0.992, blue: 0.984, alpha: 1)
+    static let plRowBg = NSColor(calibratedRed: 0.973, green: 0.969, blue: 0.953, alpha: 1)
+    static let plRowBgMuted = NSColor(calibratedRed: 0.961, green: 0.957, blue: 0.941, alpha: 1)
+    static let plTextPrimary = NSColor(calibratedRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+    static let plTextSecondary = NSColor(calibratedRed: 0.557, green: 0.557, blue: 0.576, alpha: 1)
+    static let plTextTertiary = NSColor(calibratedRed: 0.690, green: 0.686, blue: 0.675, alpha: 1)
+    static let plDanger = NSColor(calibratedRed: 0.753, green: 0.224, blue: 0.169, alpha: 1)
+    static let plLocalhostText = NSColor(calibratedRed: 0.227, green: 0.227, blue: 0.235, alpha: 1)
+    static let plUpdateBg = NSColor(calibratedRed: 0.933, green: 0.945, blue: 0.965, alpha: 1)
+    static let plUpdateText = NSColor(calibratedRed: 0.227, green: 0.353, blue: 0.549, alpha: 1)
+    static let plPrimaryButtonBg = NSColor(calibratedRed: 0.941, green: 0.937, blue: 0.925, alpha: 1)
 }
 
-// 拖曳懸浮時的柔和漸層描邊，全 App 唯一使用玻璃感效果的地方
-let dragGradient = LinearGradient(
-    colors: [Color.blue.opacity(0.45), Color.green.opacity(0.35)],
-    startPoint: .topLeading, endPoint: .bottomTrailing
-)
+// MARK: - Small reusable AppKit helpers
 
-// 「選擇資料夾」這種主要操作用的 soft filled button
-struct SoftFilledButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 12, weight: .medium))
-            .foregroundColor(Palette.textPrimary)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Palette.primaryButtonBg)
-            )
-            .shadow(color: Color.black.opacity(configuration.isPressed ? 0.02 : 0.06), radius: 4, x: 0, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+// 承載一個圓角卡片背景的 view，取代 SwiftUI 的 RoundedRectangle().fill()
+final class RoundedCardView: NSView {
+    init(cornerRadius: CGFloat, fill: NSColor, borderColor: NSColor? = nil) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = cornerRadius
+        layer?.backgroundColor = fill.cgColor
+        if let borderColor = borderColor {
+            layer?.borderColor = borderColor.cgColor
+            layer?.borderWidth = 1
+        }
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
+
+// 用來承接 click 的按鈕，統一走 closure 而不是 target/action selector 樣板
+class ClosureButton: NSButton {
+    private var onClick: (() -> Void)?
+
+    convenience init(onClick: @escaping () -> Void) {
+        self.init(frame: .zero)
+        self.onClick = onClick
+        target = self
+        action = #selector(handleClick)
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    @objc private func handleClick() { onClick?() }
+}
+
+// 拖曳資料夾進來的區域：純 AppKit 的 NSDraggingDestination 實作，
+// 取代原本 SwiftUI 的 .onDrop，懸浮時用 layer 邊框做提示。
+final class DropZoneView: NSView {
+    var onDrop: ((URL) -> Void)?
+    private var isHovering = false {
+        didSet { updateBorder() }
+    }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.cornerRadius = 30
+        layer?.backgroundColor = NSColor.plHeroBg.cgColor
+        registerForDraggedTypes([.fileURL])
+        updateBorder()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func updateBorder() {
+        layer?.borderWidth = isHovering ? 2 : 0
+        layer?.borderColor = NSColor.systemBlue.withAlphaComponent(0.5).cgColor
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        isHovering = true
+        return .copy
+    }
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        isHovering = false
+    }
+    override func draggingEnded(_ sender: NSDraggingInfo) {
+        isHovering = false
+    }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        isHovering = false
+        guard let items = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+              let url = items.first else { return false }
+        onDrop?(url)
+        return true
     }
 }
 
-// MARK: - UI
+// 主要操作按鈕（選擇資料夾）的 soft filled 外觀
+final class SoftFilledButton: ClosureButton {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+    }
+    convenience init(title: String, onClick: @escaping () -> Void) {
+        self.init(onClick: onClick)
+        isBordered = false
+        wantsLayer = true
+        layer?.cornerRadius = 14
+        layer?.backgroundColor = NSColor.plPrimaryButtonBg.cgColor
+        attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+            .foregroundColor: NSColor.plTextPrimary
+        ])
+        contentTintColor = .plTextPrimary
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
 
-struct ContentView: View {
-    @State private var ports: [PortInfo] = []
-    @State private var isRefreshing = false
-    @State private var isTargeted = false
-    @State private var lastLaunched: String = ""
-    @State private var pendingKill: PortInfo?
-    @State private var pendingKillAll = false
-    @State private var autoExpiredNotice: String = ""
-    @State private var showOtherServices = false
-    @State private var isLaunching = false
-    @State private var launchStatus: String = ""
-    @State private var pollToken = UUID()
-    @State private var updateAvailable: UpdateInfo?
-    @State private var isUpdating = false
-    @State private var updateStatus = ""
+// MARK: - Ports table (pure AppKit)
+//
+// 這個清單過去用 SwiftUI 的 List/ForEach 實作，是更新頻率最高的畫面內容；後來發現
+// 就算把它單獨換成 NSTableView，閃退仍會在完全空白、還沒渲染任何 port 資料的
+// NSHostingView.beginTransaction() 第一次掛載時發生——代表問題不在這個清單本身，
+// 而是這台機器上 SwiftUI/AttributeGraph 引擎本身的問題。所以最終整個視窗內容
+// 都改用純 AppKit 手刻，完全不再建立任何 NSHostingController/NSHostingView。
+final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    weak var tableView: NSTableView?
 
-    // 記住哪些 port 設為「保持背景常駐」(跨重啟保留)，以及全域自動過期時間
-    @AppStorage("smartlaunch.persistentPorts") private var persistentPortsRaw: String = ""
-    @AppStorage("smartlaunch.expireMinutes") private var expireMinutes: Int = 120
+    var devPorts: [PortInfo] = []
+    var otherPorts: [PortInfo] = []
+    var showOtherServices = false
+    var persistentPorts: Set<String> = []
 
-    // 拉長刷新間隔（2 秒 → 8 秒）：懷疑是 SwiftUI AttributeGraph 在這台機器的 macOS
-    // 版本上累積夠多次畫面更新後會不穩定，降低更新頻率能拉長「炸掉之前」的時間，
-    // 對正常「開 App、拖資料夾、看它跑起來」這種短時間使用情境影響不大。
-    let timer = Timer.publish(every: 8, on: .main, in: .common).autoconnect()
+    var onOpen: ((String) -> Void)?
+    var onTogglePersistent: ((String) -> Void)?
+    var onStop: ((PortInfo) -> Void)?
+    var onToggleOthers: (() -> Void)?
 
-    var persistentPorts: Set<String> {
+    private enum RowItem {
+        case empty
+        case project(PortInfo)
+        case othersHeader(Int)
+        case other(PortInfo)
+    }
+    private var rows: [RowItem] = []
+
+    func reload() {
+        var r: [RowItem] = []
+        if devPorts.isEmpty {
+            r.append(.empty)
+        } else {
+            for info in devPorts { r.append(.project(info)) }
+        }
+        if !otherPorts.isEmpty {
+            r.append(.othersHeader(otherPorts.count))
+            if showOtherServices {
+                for info in otherPorts { r.append(.other(info)) }
+            }
+        }
+        rows = r
+        tableView?.reloadData()
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { false }
+
+    func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool { false }
+
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        switch rows[row] {
+        case .empty: return 72
+        case .project: return 80
+        case .othersHeader: return 32
+        case .other: return 40
+        }
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        switch rows[row] {
+        case .empty:
+            return makeEmptyRow()
+        case .project(let info):
+            return makeProjectRow(info)
+        case .othersHeader(let count):
+            return makeOthersHeaderRow(count)
+        case .other(let info):
+            return makeOtherRow(info)
+        }
+    }
+
+    private func makeEmptyRow() -> NSView {
+        let wrapper = NSView()
+        let label = NSTextField(labelWithString: "目前沒有專案在跑")
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.textColor = .plTextTertiary
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        wrapper.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor)
+        ])
+        return wrapper
+    }
+
+    private func makeProjectRow(_ info: PortInfo) -> NSView {
+        let wrapper = NSView()
+
+        let card = RoundedCardView(cornerRadius: 20, fill: .plRowBg, borderColor: NSColor.black.withAlphaComponent(0.04))
+        wrapper.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+            card.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 5),
+            card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -5)
+        ])
+
+        let linkButton = ClosureButton(onClick: { [weak self] in
+            self?.onOpen?(info.port)
+        })
+        linkButton.attributedTitle = NSAttributedString(
+            string: "localhost:\(info.port)  ↗",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+                .foregroundColor: NSColor.plLocalhostText
+            ]
+        )
+        linkButton.isBordered = false
+        linkButton.bezelStyle = .inline
+        linkButton.alignment = .left
+        linkButton.contentTintColor = .plLocalhostText
+        linkButton.toolTip = "\(info.uptime)\n\(info.command)"
+
+        let subLabel = NSTextField(labelWithString: "\(info.processName) · \(shortUptime(info.uptimeSeconds))")
+        subLabel.font = NSFont.systemFont(ofSize: 11)
+        subLabel.textColor = .plTextSecondary
+        subLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let textStack = NSStackView(views: [linkButton, subLabel])
+        textStack.orientation = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 3
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let isPinned = persistentPorts.contains(info.port)
+        let pinButton = ClosureButton(onClick: { [weak self] in
+            self?.onTogglePersistent?(info.port)
+        })
+        pinButton.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: "常駐")
+        pinButton.isBordered = false
+        pinButton.bezelStyle = .inline
+        pinButton.contentTintColor = isPinned ? .plTextPrimary : .plTextTertiary
+        pinButton.toolTip = "常駐：不會被自動過期關閉"
+        pinButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        pinButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
+
+        let stopButton = ClosureButton(onClick: { [weak self] in
+            self?.onStop?(info)
+        })
+        stopButton.attributedTitle = NSAttributedString(
+            string: "Stop",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.plDanger
+            ]
+        )
+        stopButton.isBordered = false
+        stopButton.bezelStyle = .inline
+
+        let rightStack = NSStackView(views: [pinButton, stopButton])
+        rightStack.orientation = .horizontal
+        rightStack.alignment = .centerY
+        rightStack.spacing = 10
+        rightStack.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(textStack)
+        card.addSubview(rightStack)
+        NSLayoutConstraint.activate([
+            textStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            rightStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            rightStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            textStack.trailingAnchor.constraint(lessThanOrEqualTo: rightStack.leadingAnchor, constant: -8)
+        ])
+
+        return wrapper
+    }
+
+    private func makeOthersHeaderRow(_ count: Int) -> NSView {
+        let wrapper = NSView()
+        let button = ClosureButton(onClick: { [weak self] in
+            self?.onToggleOthers?()
+        })
+        let chevronName = showOtherServices ? "chevron.down" : "chevron.right"
+        button.attributedTitle = NSAttributedString(
+            string: "System services (\(count))",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11),
+                .foregroundColor: NSColor.plTextTertiary
+            ]
+        )
+        button.image = NSImage(systemSymbolName: chevronName, accessibilityDescription: nil)
+        button.imagePosition = .imageTrailing
+        button.isBordered = false
+        button.bezelStyle = .inline
+        button.contentTintColor = .plTextTertiary
+        button.alignment = .left
+
+        wrapper.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+            button.trailingAnchor.constraint(lessThanOrEqualTo: wrapper.trailingAnchor),
+            button.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor, constant: 4)
+        ])
+        return wrapper
+    }
+
+    private func makeOtherRow(_ info: PortInfo) -> NSView {
+        let wrapper = NSView()
+        let card = RoundedCardView(cornerRadius: 14, fill: .plRowBgMuted)
+        wrapper.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+            card.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 3),
+            card.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -3)
+        ])
+
+        let portLabel = NSTextField(labelWithString: "localhost:\(info.port)")
+        portLabel.font = NSFont.systemFont(ofSize: 11)
+        portLabel.textColor = .plTextSecondary
+        portLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let nameLabel = NSTextField(labelWithString: info.processName)
+        nameLabel.font = NSFont.systemFont(ofSize: 10)
+        nameLabel.textColor = .plTextTertiary
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(views: [portLabel, nameLabel])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -12),
+            stack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
+        ])
+        return wrapper
+    }
+}
+
+// MARK: - Main window content (pure AppKit, no SwiftUI anywhere)
+
+final class MainViewController: NSViewController {
+    // MARK: State
+    private var ports: [PortInfo] = []
+    private var isRefreshing = false
+    private var lastLaunched = ""
+    private var autoExpiredNotice = ""
+    private var showOtherServices = false
+    private var isLaunching = false
+    private var launchStatus = ""
+    private var pollToken = UUID()
+    private var updateAvailable: UpdateInfo?
+    private var isUpdating = false
+    private var updateStatus = ""
+
+    private var persistentPortsRaw: String {
+        get { UserDefaults.standard.string(forKey: "smartlaunch.persistentPorts") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "smartlaunch.persistentPorts") }
+    }
+    private var expireMinutes: Int {
+        get {
+            if UserDefaults.standard.object(forKey: "smartlaunch.expireMinutes") == nil { return 120 }
+            return UserDefaults.standard.integer(forKey: "smartlaunch.expireMinutes")
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "smartlaunch.expireMinutes") }
+    }
+    private var persistentPorts: Set<String> {
         Set(persistentPortsRaw.split(separator: ",").map(String.init))
     }
+    private var devPorts: [PortInfo] { ports.filter { $0.isDev } }
+    private var otherPorts: [PortInfo] { ports.filter { !$0.isDev } }
 
-    var devPorts: [PortInfo] { ports.filter { $0.isDev } }
-    var otherPorts: [PortInfo] { ports.filter { !$0.isDev } }
+    private var refreshTimer: Timer?
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+    // MARK: Views
+    private let topStack = NSStackView()
+    private let updateBannerHost = NSView()
+    private let heroCardHost = NSView()
+    private let autoCloseHost = NSView()
+    private let runningHeaderHost = NSView()
+    private let scrollView = NSScrollView()
+    private let tableView = NSTableView()
+    private let footerHost = NSView()
+    private let portsTable = PortsTableController()
+    private var expirePopup: NSPopUpButton!
 
-            if let update = updateAvailable {
-                updateBanner(update)
-            }
+    override func loadView() {
+        view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.plWindowBg.cgColor
+    }
 
-            heroCard
-            autoCloseRow
-            runningProjectsHeader
-
-            // 改版後這裡本來是手刻的 ScrollView + VStack + ForEach，換回原生 List——
-            // List 是 SwiftUI 從一開始就有、經過大量實戰測試的元件，處理會動態增減的
-            // 內容遠比自己手刻的捲動容器成熟穩定，用來取代不確定成因的背景閒置崩潰。
-            List {
-                if devPorts.isEmpty {
-                    Text("目前沒有專案在跑")
-                        .font(.system(size: 12))
-                        .foregroundColor(Palette.textTertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                } else {
-                    ForEach(devPorts) { info in
-                        projectRow(info)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 0, bottom: 5, trailing: 0))
-                    }
-                }
-                if !otherPorts.isEmpty {
-                    otherServicesDisclosure
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Palette.windowBg)
-            .frame(maxHeight: .infinity)
-
-            footerCredit
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Palette.windowBg)
-        .onAppear(perform: refresh)
-        .onAppear {
-            checkForUpdate { info in
-                DispatchQueue.main.async {
-                    updateAvailable = info
-                }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        buildLayout()
+        refresh()
+        checkForUpdate { [weak self] info in
+            DispatchQueue.main.async {
+                self?.updateAvailable = info
+                self?.rebuildUpdateBanner()
             }
         }
-        .onReceive(timer) { _ in refresh() }
-        .alert(item: $pendingKill) { info in
-            Alert(
-                title: Text("關閉 localhost:\(info.port)？"),
-                message: Text("\(info.processName) · PID \(info.pid)\n\(info.command)"),
-                primaryButton: .destructive(Text("關閉")) { doKill(info) },
-                secondaryButton: .cancel(Text("取消"))
-            )
-        }
-        .alert("全部關閉？", isPresented: $pendingKillAll) {
-            Button("全部關閉", role: .destructive) { killAll() }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text(killAllMessage)
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { [weak self] _ in
+            self?.refresh()
         }
     }
 
-    var killAllMessage: String {
-        let toKill = devPorts.filter { !isPersistent($0.port) }
-        let skipped = devPorts.count - toKill.count
-        var msg = "會關閉 \(toKill.count) 個開發伺服器（localhost:\(toKill.map { $0.port }.joined(separator: ", localhost:")))。"
-        if skipped > 0 {
-            msg += "\n有標記「常駐」的 \(skipped) 個服務不會被關閉。"
+    // MARK: Layout
+
+    private func buildLayout() {
+        topStack.orientation = .vertical
+        topStack.alignment = .leading
+        topStack.spacing = 16
+        topStack.translatesAutoresizingMaskIntoConstraints = false
+
+        topStack.addArrangedSubview(buildHeader())
+        topStack.addArrangedSubview(updateBannerHost)
+        topStack.addArrangedSubview(heroCardHost)
+        topStack.addArrangedSubview(autoCloseHost)
+        topStack.addArrangedSubview(runningHeaderHost)
+
+        for host in [updateBannerHost, heroCardHost, autoCloseHost, runningHeaderHost] {
+            host.translatesAutoresizingMaskIntoConstraints = false
+            host.widthAnchor.constraint(equalTo: topStack.widthAnchor).isActive = true
         }
-        return msg
-    }
 
-    func killAll() {
-        for info in devPorts where !isPersistent(info.port) {
-            Darwin.kill(info.pid, SIGTERM)
+        tableView.headerView = nil
+        tableView.backgroundColor = .clear
+        tableView.selectionHighlightStyle = .none
+        tableView.intercellSpacing = NSSize(width: 0, height: 0)
+        tableView.rowSizeStyle = .custom
+        tableView.gridStyleMask = []
+        tableView.style = .plain
+        tableView.usesAlternatingRowBackgroundColors = false
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("main"))
+        column.resizingMask = .autoresizingMask
+        tableView.addTableColumn(column)
+        tableView.dataSource = portsTable
+        tableView.delegate = portsTable
+        portsTable.tableView = tableView
+        portsTable.onOpen = { [weak self] port in self?.openBrowser(port: port) }
+        portsTable.onTogglePersistent = { [weak self] port in self?.togglePersistent(port) }
+        portsTable.onStop = { [weak self] info in self?.confirmStop(info) }
+        portsTable.onToggleOthers = { [weak self] in
+            guard let self = self else { return }
+            self.showOtherServices.toggle()
+            self.portsTable.showOtherServices = self.showOtherServices
+            self.portsTable.reload()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            refresh()
-        }
+
+        scrollView.documentView = tableView
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.drawsBackground = false
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+
+        footerHost.translatesAutoresizingMaskIntoConstraints = false
+        buildFooter()
+
+        view.addSubview(topStack)
+        view.addSubview(scrollView)
+        view.addSubview(footerHost)
+
+        NSLayoutConstraint.activate([
+            topStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
+            topStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            topStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+
+            scrollView.topAnchor.constraint(equalTo: topStack.bottomAnchor, constant: 16),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            scrollView.bottomAnchor.constraint(equalTo: footerHost.topAnchor, constant: -4),
+
+            footerHost.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            footerHost.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            footerHost.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14)
+        ])
+
+        rebuildUpdateBanner()
+        rebuildHeroCard()
+        rebuildAutoClose()
+        rebuildRunningHeader()
+        syncPortsTable()
     }
 
-    func isPersistent(_ port: String) -> Bool {
-        persistentPorts.contains(port)
-    }
+    private func buildHeader() -> NSView {
+        let title = NSTextField(labelWithString: "Smart Launch")
+        title.font = NSFont.systemFont(ofSize: 20, weight: .semibold)
+        title.textColor = .plTextPrimary
 
-    func togglePersistent(_ port: String) {
-        var set = persistentPorts
-        if set.contains(port) { set.remove(port) } else { set.insert(port) }
-        persistentPortsRaw = set.sorted().joined(separator: ",")
-    }
+        let subtitle = NSTextField(labelWithString: "讓本機專案重新啟動變簡單")
+        subtitle.font = NSFont.systemFont(ofSize: 12)
+        subtitle.textColor = .plTextSecondary
 
-    // MARK: Header
+        let textStack = NSStackView(views: [title, subtitle])
+        textStack.orientation = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 2
 
-    var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Smart Launch")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Palette.textPrimary)
-                Text("讓本機專案重新啟動變簡單")
-                    .font(.system(size: 12))
-                    .foregroundColor(Palette.textSecondary)
-            }
-            Spacer()
+        let githubButton = ClosureButton(onClick: {
             if let url = URL(string: "https://github.com/ST6AR1/smart-launch") {
-                Link(destination: url) {
-                    githubIcon
-                        .frame(width: 14, height: 14)
-                        .foregroundColor(Palette.textTertiary)
-                        .frame(width: 28, height: 28)
-                        .background(Circle().fill(Color.black.opacity(0.04)))
-                }
-                .buttonStyle(.plain)
-                .help("在 GitHub 上查看這個專案")
+                NSWorkspace.shared.open(url)
             }
+        })
+        githubButton.isBordered = false
+        githubButton.bezelStyle = .inline
+        githubButton.wantsLayer = true
+        githubButton.layer?.cornerRadius = 14
+        githubButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.04).cgColor
+        githubButton.toolTip = "在 GitHub 上查看這個專案"
+        githubButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
+        githubButton.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
+           let nsImage = NSImage(contentsOfFile: path) {
+            nsImage.isTemplate = true
+            githubButton.image = nsImage
+        } else {
+            githubButton.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
         }
+        githubButton.imageScaling = .scaleProportionallyDown
+        githubButton.contentTintColor = .plTextTertiary
+
+        let row = NSStackView(views: [textStack, NSView(), githubButton])
+        row.orientation = .horizontal
+        row.alignment = .top
+        row.distribution = .fill
+        row.setHuggingPriority(.defaultLow, for: .horizontal)
+        return row
     }
 
-    // 從 app bundle 讀真正的 GitHub 圖示（灰階 template，可跟著 foregroundColor 上色）
-    var githubIcon: some View {
-        Group {
-            if let path = Bundle.main.path(forResource: "github-mark", ofType: "png"),
-               let nsImage = NSImage(contentsOfFile: path) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                Image(systemName: "chevron.left.forwardslash.chevron.right")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-        }
-    }
+    // MARK: Update banner
 
-    func updateBanner(_ update: UpdateInfo) -> some View {
-        HStack {
-            if isUpdating {
-                ProgressView().controlSize(.small)
-                Text(updateStatus.isEmpty ? "正在更新…" : updateStatus)
-                    .font(.system(size: 12))
-                    .foregroundColor(Palette.textPrimary)
-            } else {
-                Text("🎉 有新版本 v\(update.version) 可下載")
-                    .font(.system(size: 12))
-                    .foregroundColor(Palette.textPrimary)
-                Spacer()
+    private func rebuildUpdateBanner() {
+        updateBannerHost.subviews.forEach { $0.removeFromSuperview() }
+        guard let update = updateAvailable else {
+            updateBannerHost.isHidden = true
+            return
+        }
+        updateBannerHost.isHidden = false
+
+        let card = RoundedCardView(cornerRadius: 14, fill: .plUpdateBg)
+        updateBannerHost.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.leadingAnchor.constraint(equalTo: updateBannerHost.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: updateBannerHost.trailingAnchor),
+            card.topAnchor.constraint(equalTo: updateBannerHost.topAnchor),
+            card.bottomAnchor.constraint(equalTo: updateBannerHost.bottomAnchor)
+        ])
+
+        if isUpdating {
+            let spinner = NSProgressIndicator()
+            spinner.style = .spinning
+            spinner.controlSize = .small
+            spinner.startAnimation(nil)
+            spinner.translatesAutoresizingMaskIntoConstraints = false
+
+            let label = NSTextField(labelWithString: updateStatus.isEmpty ? "正在更新…" : updateStatus)
+            label.font = NSFont.systemFont(ofSize: 12)
+            label.textColor = .plTextPrimary
+
+            let row = NSStackView(views: [spinner, label])
+            row.orientation = .horizontal
+            row.spacing = 8
+            row.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(row)
+            NSLayoutConstraint.activate([
+                row.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+                row.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -14),
+                row.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
+                row.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -10)
+            ])
+        } else {
+            let label = NSTextField(labelWithString: "🎉 有新版本 v\(update.version) 可下載")
+            label.font = NSFont.systemFont(ofSize: 12)
+            label.textColor = .plTextPrimary
+            label.translatesAutoresizingMaskIntoConstraints = false
+
+            let actionButton = ClosureButton(onClick: { [weak self] in
+                guard let self = self else { return }
                 if update.dmgURL != nil {
-                    Button("立即更新") { performUpdate(update) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Palette.updateText)
+                    self.performUpdate(update)
                 } else {
-                    Link("前往查看", destination: update.releasePageURL)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Palette.updateText)
+                    NSWorkspace.shared.open(update.releasePageURL)
                 }
-            }
+            })
+            actionButton.isBordered = false
+            actionButton.bezelStyle = .inline
+            actionButton.attributedTitle = NSAttributedString(
+                string: update.dmgURL != nil ? "立即更新" : "前往查看",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                    .foregroundColor: NSColor.plUpdateText
+                ]
+            )
+
+            card.addSubview(label)
+            card.addSubview(actionButton)
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+                label.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+                actionButton.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+                actionButton.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+                card.topAnchor.constraint(equalTo: label.topAnchor, constant: -10),
+                card.bottomAnchor.constraint(equalTo: label.bottomAnchor, constant: 10)
+            ])
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Palette.updateBg))
     }
 
     // 下載新版 DMG → 掛載 → 複製到自己現在的路徑蓋過舊版 → 卸載 → 重開新版、結束自己。
-    // 全程在背景執行緒跑；任何一步失敗都優雅降級，改請使用者自己去 Release 頁面下載。
-    func performUpdate(_ update: UpdateInfo) {
+    private func performUpdate(_ update: UpdateInfo) {
         guard let dmgURL = update.dmgURL else { return }
         isUpdating = true
         updateStatus = "正在下載更新…"
+        rebuildUpdateBanner()
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             func fail(_ message: String) {
                 DispatchQueue.main.async {
+                    guard let self = self else { return }
                     self.isUpdating = false
                     self.updateStatus = ""
                     self.autoExpiredNotice = message
+                    self.rebuildUpdateBanner()
+                    self.rebuildAutoClose()
                 }
             }
 
@@ -601,7 +909,7 @@ struct ContentView: View {
                 return
             }
 
-            DispatchQueue.main.async { self.updateStatus = "正在安裝…" }
+            DispatchQueue.main.async { self?.updateStatus = "正在安裝…"; self?.rebuildUpdateBanner() }
 
             let mountPoint = tmpDir.appendingPathComponent("SmartLaunchMount-\(UUID().uuidString)").path
             try? FileManager.default.createDirectory(atPath: mountPoint, withIntermediateDirectories: true)
@@ -636,7 +944,7 @@ struct ContentView: View {
                 return
             }
 
-            DispatchQueue.main.async { self.updateStatus = "正在替換舊版本…" }
+            DispatchQueue.main.async { self?.updateStatus = "正在替換舊版本…"; self?.rebuildUpdateBanner() }
 
             let stagingPath = tmpDir.appendingPathComponent("SmartLaunch-new-\(UUID().uuidString).app").path
             do {
@@ -665,7 +973,7 @@ struct ContentView: View {
                 return
             }
 
-            DispatchQueue.main.async { self.updateStatus = "更新完成，重新啟動中…" }
+            DispatchQueue.main.async { self?.updateStatus = "更新完成，重新啟動中…"; self?.rebuildUpdateBanner() }
 
             let openTask = Process()
             openTask.executableURL = URL(fileURLWithPath: "/usr/bin/open")
@@ -678,294 +986,389 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Hero — Launch Project
+    // MARK: Hero card
 
-    var heroCard: some View {
-        VStack(spacing: 10) {
-            if isLaunching {
-                ProgressView()
-                    .controlSize(.small)
-                Text(launchStatus.isEmpty ? "正在啟動…" : launchStatus)
-                    .font(.system(size: 12))
-                    .foregroundColor(Palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .padding(.horizontal, 12)
-                Button("先不等了") { cancelWaiting() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundColor(Palette.textSecondary)
-            } else {
-                Image(systemName: "folder")
-                    .font(.system(size: 22, weight: .light))
-                    .foregroundColor(Palette.textSecondary)
-                Text("把專案資料夾拖到這裡")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Palette.textPrimary)
-                Text("自動判斷並啟動 localhost")
-                    .font(.system(size: 12))
-                    .foregroundColor(Palette.textSecondary)
-                Button("選擇資料夾") { chooseFolder() }
-                    .buttonStyle(SoftFilledButtonStyle())
-                    .padding(.top, 4)
-                if !lastLaunched.isEmpty {
-                    Text("上次啟動：\(lastLaunched)")
-                        .font(.system(size: 10))
-                        .foregroundColor(Palette.textTertiary)
-                }
+    private func rebuildHeroCard() {
+        heroCardHost.subviews.forEach { $0.removeFromSuperview() }
+
+        let dropZone = DropZoneView(frame: .zero)
+        dropZone.translatesAutoresizingMaskIntoConstraints = false
+        dropZone.onDrop = { [weak self] url in
+            self?.lastLaunched = url.lastPathComponent
+            self?.launchAndAutoOpen(path: url.path)
+        }
+        heroCardHost.addSubview(dropZone)
+
+        let shadowContainer = NSView()
+        shadowContainer.wantsLayer = true
+        shadowContainer.layer?.shadowOpacity = 0.08
+        shadowContainer.layer?.shadowRadius = 16
+        shadowContainer.layer?.shadowOffset = CGSize(width: 0, height: -6)
+        shadowContainer.translatesAutoresizingMaskIntoConstraints = false
+        heroCardHost.addSubview(shadowContainer, positioned: .below, relativeTo: dropZone)
+        NSLayoutConstraint.activate([
+            shadowContainer.leadingAnchor.constraint(equalTo: dropZone.leadingAnchor),
+            shadowContainer.trailingAnchor.constraint(equalTo: dropZone.trailingAnchor),
+            shadowContainer.topAnchor.constraint(equalTo: dropZone.topAnchor),
+            shadowContainer.bottomAnchor.constraint(equalTo: dropZone.bottomAnchor)
+        ])
+
+        NSLayoutConstraint.activate([
+            dropZone.leadingAnchor.constraint(equalTo: heroCardHost.leadingAnchor),
+            dropZone.trailingAnchor.constraint(equalTo: heroCardHost.trailingAnchor),
+            dropZone.topAnchor.constraint(equalTo: heroCardHost.topAnchor),
+            dropZone.bottomAnchor.constraint(equalTo: heroCardHost.bottomAnchor),
+            dropZone.heightAnchor.constraint(equalToConstant: isLaunching ? 160 : 170)
+        ])
+
+        let contentStack = NSStackView()
+        contentStack.orientation = .vertical
+        contentStack.alignment = .centerX
+        contentStack.spacing = 10
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        dropZone.addSubview(contentStack)
+        NSLayoutConstraint.activate([
+            contentStack.centerXAnchor.constraint(equalTo: dropZone.centerXAnchor),
+            contentStack.centerYAnchor.constraint(equalTo: dropZone.centerYAnchor),
+            contentStack.leadingAnchor.constraint(greaterThanOrEqualTo: dropZone.leadingAnchor, constant: 24),
+            contentStack.trailingAnchor.constraint(lessThanOrEqualTo: dropZone.trailingAnchor, constant: -24)
+        ])
+
+        if isLaunching {
+            let spinner = NSProgressIndicator()
+            spinner.style = .spinning
+            spinner.controlSize = .small
+            spinner.startAnimation(nil)
+
+            let status = NSTextField(wrappingLabelWithString: launchStatus.isEmpty ? "正在啟動…" : launchStatus)
+            status.font = NSFont.systemFont(ofSize: 12)
+            status.textColor = .plTextSecondary
+            status.alignment = .center
+            status.maximumNumberOfLines = 2
+            status.widthAnchor.constraint(lessThanOrEqualToConstant: 380).isActive = true
+
+            let cancelButton = ClosureButton(onClick: { [weak self] in self?.cancelWaiting() })
+            cancelButton.isBordered = false
+            cancelButton.bezelStyle = .inline
+            cancelButton.attributedTitle = NSAttributedString(
+                string: "先不等了",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11),
+                    .foregroundColor: NSColor.plTextSecondary
+                ]
+            )
+
+            contentStack.addArrangedSubview(spinner)
+            contentStack.addArrangedSubview(status)
+            contentStack.addArrangedSubview(cancelButton)
+        } else {
+            let icon = NSImageView(image: NSImage(systemSymbolName: "folder", accessibilityDescription: nil) ?? NSImage())
+            icon.contentTintColor = .plTextSecondary
+            icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 22, weight: .light)
+
+            let title = NSTextField(labelWithString: "把專案資料夾拖到這裡")
+            title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+            title.textColor = .plTextPrimary
+
+            let subtitle = NSTextField(labelWithString: "自動判斷並啟動 localhost")
+            subtitle.font = NSFont.systemFont(ofSize: 12)
+            subtitle.textColor = .plTextSecondary
+
+            let chooseButton = SoftFilledButton(title: "選擇資料夾", onClick: { [weak self] in self?.chooseFolder() })
+            chooseButton.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            chooseButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
+
+            contentStack.addArrangedSubview(icon)
+            contentStack.addArrangedSubview(title)
+            contentStack.addArrangedSubview(subtitle)
+            contentStack.setCustomSpacing(4, after: subtitle)
+            contentStack.addArrangedSubview(chooseButton)
+
+            if !lastLaunched.isEmpty {
+                let lastLabel = NSTextField(labelWithString: "上次啟動：\(lastLaunched)")
+                lastLabel.font = NSFont.systemFont(ofSize: 10)
+                lastLabel.textColor = .plTextTertiary
+                contentStack.addArrangedSubview(lastLabel)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: isLaunching ? 160 : 170)
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 30)
-                .fill(Palette.heroBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .strokeBorder(dragGradient, lineWidth: 2)
-                        .opacity(isTargeted ? 1 : 0)
-                )
+    }
+
+    // MARK: Auto Close row
+
+    private func rebuildAutoClose() {
+        autoCloseHost.subviews.forEach { $0.removeFromSuperview() }
+
+        let title = NSTextField(labelWithString: "Auto Close")
+        title.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        title.textColor = .plTextPrimary
+
+        let subtitle = NSTextField(labelWithString: "閒置專案將自動關閉")
+        subtitle.font = NSFont.systemFont(ofSize: 11)
+        subtitle.textColor = .plTextSecondary
+
+        let textStack = NSStackView(views: [title, subtitle])
+        textStack.orientation = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 2
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        popup.bezelStyle = .rounded
+        for opt in expireOptions {
+            popup.addItem(withTitle: opt.label)
+        }
+        if let idx = expireOptions.firstIndex(where: { $0.minutes == expireMinutes }) {
+            popup.selectItem(at: idx)
+        }
+        popup.target = self
+        popup.action = #selector(expirePopupChanged(_:))
+        popup.widthAnchor.constraint(equalToConstant: 130).isActive = true
+        expirePopup = popup
+
+        let row = NSStackView(views: [textStack, NSView(), popup])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.distribution = .fill
+
+        let outer = NSStackView()
+        outer.orientation = .vertical
+        outer.alignment = .leading
+        outer.spacing = 6
+        outer.translatesAutoresizingMaskIntoConstraints = false
+        outer.addArrangedSubview(row)
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
+
+        if !autoExpiredNotice.isEmpty {
+            let notice = NSTextField(wrappingLabelWithString: autoExpiredNotice)
+            notice.font = NSFont.systemFont(ofSize: 10)
+            notice.textColor = .plTextTertiary
+            outer.addArrangedSubview(notice)
+            notice.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
+        }
+
+        autoCloseHost.addSubview(outer)
+        NSLayoutConstraint.activate([
+            outer.leadingAnchor.constraint(equalTo: autoCloseHost.leadingAnchor),
+            outer.trailingAnchor.constraint(equalTo: autoCloseHost.trailingAnchor),
+            outer.topAnchor.constraint(equalTo: autoCloseHost.topAnchor),
+            outer.bottomAnchor.constraint(equalTo: autoCloseHost.bottomAnchor)
+        ])
+    }
+
+    @objc private func expirePopupChanged(_ sender: NSPopUpButton) {
+        let idx = sender.indexOfSelectedItem
+        guard idx >= 0 && idx < expireOptions.count else { return }
+        expireMinutes = expireOptions[idx].minutes
+    }
+
+    // MARK: Running Projects header
+
+    private func rebuildRunningHeader() {
+        runningHeaderHost.subviews.forEach { $0.removeFromSuperview() }
+
+        let title = NSTextField(labelWithString: "Running Projects")
+        title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+        title.textColor = .plTextPrimary
+
+        var trailingViews: [NSView] = []
+
+        if !devPorts.isEmpty {
+            let killAllButton = ClosureButton(onClick: { [weak self] in self?.confirmKillAll() })
+            killAllButton.isBordered = false
+            killAllButton.bezelStyle = .inline
+            killAllButton.attributedTitle = NSAttributedString(
+                string: "全部關閉",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                    .foregroundColor: NSColor.plDanger
+                ]
+            )
+            trailingViews.append(killAllButton)
+        }
+
+        let refreshButton = ClosureButton(onClick: { [weak self] in self?.refresh() })
+        refreshButton.isBordered = false
+        refreshButton.bezelStyle = .inline
+        refreshButton.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "重新整理")
+        refreshButton.contentTintColor = .plTextSecondary
+        trailingViews.append(refreshButton)
+
+        let row = NSStackView(views: [title, NSView()] + trailingViews)
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 12
+        row.distribution = .fill
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        runningHeaderHost.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.leadingAnchor.constraint(equalTo: runningHeaderHost.leadingAnchor),
+            row.trailingAnchor.constraint(equalTo: runningHeaderHost.trailingAnchor),
+            row.topAnchor.constraint(equalTo: runningHeaderHost.topAnchor),
+            row.bottomAnchor.constraint(equalTo: runningHeaderHost.bottomAnchor)
+        ])
+    }
+
+    // MARK: Footer
+
+    private func buildFooter() {
+        let line1 = NSTextField(labelWithString: "由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
+        let githubLink = ClosureButton(onClick: {
+            if let url = URL(string: "https://github.com/ST6AR1") {
+                NSWorkspace.shared.open(url)
+            }
+        })
+        githubLink.isBordered = false
+        githubLink.bezelStyle = .inline
+        githubLink.attributedTitle = NSAttributedString(string: "GitHub @ST6AR1")
+        let versionLabel = NSTextField(labelWithString: "v\(currentVersion)")
+
+        for field in [line1, versionLabel] {
+            field.font = NSFont.systemFont(ofSize: 10)
+            field.textColor = .plTextTertiary.withAlphaComponent(0.7)
+            field.alignment = .center
+        }
+        githubLink.attributedTitle = NSAttributedString(
+            string: "GitHub @ST6AR1",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 10),
+                .foregroundColor: NSColor.plTextTertiary.withAlphaComponent(0.7)
+            ]
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 24, x: 0, y: 10)
-        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
-            handleDrop(providers)
-        }
+
+        let stack = NSStackView(views: [line1, githubLink, versionLabel])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 2
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        footerHost.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: footerHost.centerXAnchor),
+            stack.topAnchor.constraint(equalTo: footerHost.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: footerHost.bottomAnchor)
+        ])
     }
 
-    // MARK: Auto Close — inline row, no card
+    // MARK: Actions
 
-    // SwiftUI 的 Menu 在這台機器的 macOS 版本上會不定時讓 AttributeGraph 崩潰
-    // （已用「拿掉 Menu 後連續跑 90 秒完全不會崩潰」證實），改用原生 NSPopUpButton
-    // 包一層 NSViewRepresentable，完全不走 SwiftUI Menu 那條有問題的路徑。
-    struct ExpireMenuPicker: NSViewRepresentable {
-        @Binding var selection: Int
-        let options: [ExpireOption]
-
-        func makeNSView(context: Context) -> NSPopUpButton {
-            let button = NSPopUpButton(frame: .zero, pullsDown: false)
-            button.font = NSFont.systemFont(ofSize: 11, weight: .medium)
-            button.bezelStyle = .rounded
-            for opt in options {
-                button.addItem(withTitle: opt.label)
-            }
-            button.target = context.coordinator
-            button.action = #selector(Coordinator.selectionChanged(_:))
-            context.coordinator.options = options
-            if let idx = options.firstIndex(where: { $0.minutes == selection }) {
-                button.selectItem(at: idx)
-            }
-            return button
-        }
-
-        func updateNSView(_ nsView: NSPopUpButton, context: Context) {
-            context.coordinator.options = options
-            if let idx = options.firstIndex(where: { $0.minutes == selection }),
-               nsView.indexOfSelectedItem != idx {
-                nsView.selectItem(at: idx)
-            }
-        }
-
-        func makeCoordinator() -> Coordinator {
-            Coordinator(selection: $selection)
-        }
-
-        class Coordinator: NSObject {
-            var selectionBinding: Binding<Int>
-            var options: [ExpireOption] = []
-            init(selection: Binding<Int>) {
-                self.selectionBinding = selection
-            }
-            @objc func selectionChanged(_ sender: NSPopUpButton) {
-                let idx = sender.indexOfSelectedItem
-                if idx >= 0 && idx < options.count {
-                    selectionBinding.wrappedValue = options[idx].minutes
-                }
-            }
-        }
-    }
-
-    var currentExpireLabel: String {
-        expireOptions.first(where: { $0.minutes == expireMinutes })?.label
-            .replacingOccurrences(of: "（預設）", with: "") ?? "\(expireMinutes) 分"
-    }
-
-    var autoCloseRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Auto Close")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Palette.textPrimary)
-                    Text("閒置專案將自動關閉")
-                        .font(.system(size: 11))
-                        .foregroundColor(Palette.textSecondary)
-                }
-                Spacer()
-                ExpireMenuPicker(selection: $expireMinutes, options: expireOptions)
-                    .frame(width: 130)
-            }
-            if !autoExpiredNotice.isEmpty {
-                Text(autoExpiredNotice)
-                    .font(.system(size: 10))
-                    .foregroundColor(Palette.textTertiary)
-            }
-        }
-    }
-
-    // MARK: Running Projects
-
-    var runningProjectsHeader: some View {
-        HStack {
-            Text("Running Projects")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(Palette.textPrimary)
-            Spacer()
-            if !devPorts.isEmpty {
-                Button("全部關閉") { pendingKillAll = true }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Palette.danger)
-            }
-            Button(action: refresh) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11))
-                    .foregroundColor(Palette.textSecondary)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    func shortUptime(_ totalSeconds: Int) -> String {
-        let days = totalSeconds / 86400
-        let hours = (totalSeconds % 86400) / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        if days > 0 { return "\(days) d" }
-        if hours > 0 { return "\(hours) hr" }
-        if minutes > 0 { return "\(minutes) min" }
-        return "< 1 min"
-    }
-
-    func projectRow(_ info: PortInfo) -> some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    Text("localhost:\(info.port)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Palette.localhostText)
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 8))
-                        .foregroundColor(Palette.textTertiary)
-                }
-                .onTapGesture { openBrowser(port: info.port) }
-                .help("\(info.uptime)\n\(info.command)")
-
-                Text("\(info.processName) · \(shortUptime(info.uptimeSeconds))")
-                    .font(.system(size: 11))
-                    .foregroundColor(Palette.textSecondary)
-            }
-            Spacer()
-            Button(action: { togglePersistent(info.port) }) {
-                Image(systemName: isPersistent(info.port) ? "pin.fill" : "pin")
-                    .font(.system(size: 12))
-                    .foregroundColor(isPersistent(info.port) ? Palette.textPrimary : Palette.textTertiary)
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.plain)
-            .help("常駐：不會被自動過期關閉")
-
-            Button("Stop") { pendingKill = info }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Palette.danger)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: 20).fill(Palette.rowBg))
-        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.black.opacity(0.04), lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 1)
-    }
-
-    var otherServicesDisclosure: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button(action: { showOtherServices.toggle() }) {
-                HStack {
-                    Text("System services (\(otherPorts.count))")
-                        .font(.system(size: 11))
-                        .foregroundColor(Palette.textTertiary)
-                    Spacer()
-                    Image(systemName: showOtherServices ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9))
-                        .foregroundColor(Palette.textTertiary)
-                }
-            }
-            .buttonStyle(.plain)
-
-            if showOtherServices {
-                VStack(spacing: 6) {
-                    ForEach(otherPorts) { info in
-                        HStack {
-                            Text("localhost:\(info.port)")
-                                .font(.system(size: 11))
-                                .foregroundColor(Palette.textSecondary)
-                            Text(info.processName)
-                                .font(.system(size: 10))
-                                .foregroundColor(Palette.textTertiary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Palette.rowBgMuted))
-                    }
-                }
-            }
-        }
-        .padding(.top, 4)
-    }
-
-    func openBrowser(port: String) {
+    private func openBrowser(port: String) {
         if let url = URL(string: "http://localhost:\(port)") {
             NSWorkspace.shared.open(url)
         }
     }
 
-    // MARK: Footer
-
-    var footerCredit: some View {
-        VStack(spacing: 2) {
-            Text("由溫Wen 與 claude寶寶 聯合製作 ⌯^⦁𖥦⦁^⌯")
-            if let url = URL(string: "https://github.com/ST6AR1") {
-                Link("GitHub @ST6AR1", destination: url)
-                    .underline(false)
-            }
-            Text("v\(currentVersion)")
-                .padding(.top, 2)
-        }
-        .font(.system(size: 10))
-        .foregroundColor(Palette.textTertiary.opacity(0.7))
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
+    private func togglePersistent(_ port: String) {
+        var set = persistentPorts
+        if set.contains(port) { set.remove(port) } else { set.insert(port) }
+        persistentPortsRaw = set.sorted().joined(separator: ",")
+        portsTable.persistentPorts = persistentPorts
+        portsTable.reload()
     }
 
-    // fetchPorts() 會跑 lsof + 每個 port 兩次 ps，屬於阻塞式呼叫，一律丟到背景執行緒避免卡住 UI。
-    // 加上 isRefreshing 防止上一輪還沒跑完、下一次 2 秒計時器又觸發，兩輪背景工作同時把結果
-    // 丟回主執行緒，導致短時間內疊加太多次狀態變更（曾經懷疑是這種 transaction 疊加讓
-    // AttributeGraph 在某些 macOS 版本上不穩定，加這個guard 至少能排除這個可能性）。
-    func refresh() {
+    private func confirmStop(_ info: PortInfo) {
+        let alert = NSAlert()
+        alert.messageText = "關閉 localhost:\(info.port)？"
+        alert.informativeText = "\(info.processName) · PID \(info.pid)\n\(info.command)"
+        alert.addButton(withTitle: "關閉")
+        alert.addButton(withTitle: "取消")
+        alert.buttons.first?.hasDestructiveAction = true
+        guard let window = view.window else { return }
+        alert.beginSheetModal(for: window) { [weak self] response in
+            if response == .alertFirstButtonReturn {
+                self?.doKill(info)
+            }
+        }
+    }
+
+    private func confirmKillAll() {
+        let toKill = devPorts.filter { !isPersistent($0.port) }
+        let skipped = devPorts.count - toKill.count
+        var msg = "會關閉 \(toKill.count) 個開發伺服器（localhost:\(toKill.map { $0.port }.joined(separator: ", localhost:")))。"
+        if skipped > 0 {
+            msg += "\n有標記「常駐」的 \(skipped) 個服務不會被關閉。"
+        }
+        let alert = NSAlert()
+        alert.messageText = "全部關閉？"
+        alert.informativeText = msg
+        alert.addButton(withTitle: "全部關閉")
+        alert.addButton(withTitle: "取消")
+        alert.buttons.first?.hasDestructiveAction = true
+        guard let window = view.window else { return }
+        alert.beginSheetModal(for: window) { [weak self] response in
+            if response == .alertFirstButtonReturn {
+                self?.killAll()
+            }
+        }
+    }
+
+    private func isPersistent(_ port: String) -> Bool {
+        persistentPorts.contains(port)
+    }
+
+    private func killAll() {
+        for info in devPorts where !isPersistent(info.port) {
+            Darwin.kill(info.pid, SIGTERM)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.refresh()
+        }
+    }
+
+    private func doKill(_ info: PortInfo) {
+        Darwin.kill(info.pid, SIGTERM)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.refresh()
+        }
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "選擇"
+        guard let window = view.window else { return }
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.lastLaunched = url.lastPathComponent
+            self?.launchAndAutoOpen(path: url.path)
+        }
+    }
+
+    func handleOpenURL(_ url: URL) {
+        lastLaunched = url.lastPathComponent
+        launchAndAutoOpen(path: url.path)
+    }
+
+    // MARK: Refresh / expiry
+
+    private func syncPortsTable() {
+        portsTable.devPorts = devPorts
+        portsTable.otherPorts = otherPorts
+        portsTable.showOtherServices = showOtherServices
+        portsTable.persistentPorts = persistentPorts
+        portsTable.reload()
+    }
+
+    private func refresh() {
         guard !isRefreshing else { return }
         isRefreshing = true
-        DispatchQueue.global(qos: .utility).async {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
             let fetched = fetchPorts()
             DispatchQueue.main.async {
+                guard let self = self else { return }
                 self.ports = fetched
                 self.checkExpiry(fetched)
                 self.isRefreshing = false
+                self.syncPortsTable()
+                self.rebuildRunningHeader()
             }
         }
     }
 
-    func checkExpiry(_ fetched: [PortInfo]) {
+    private func checkExpiry(_ fetched: [PortInfo]) {
         guard expireMinutes > 0 else { return }
         let limitSeconds = expireMinutes * 60
         for info in fetched where info.isDev {
@@ -973,120 +1376,91 @@ struct ContentView: View {
             if info.uptimeSeconds >= limitSeconds {
                 Darwin.kill(info.pid, SIGTERM)
                 autoExpiredNotice = "已自動關閉 localhost:\(info.port)（運行超過 \(expireMinutes) 分鐘）"
+                rebuildAutoClose()
             }
         }
     }
 
-    func doKill(_ info: PortInfo) {
-        Darwin.kill(info.pid, SIGTERM)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            refresh()
-        }
-    }
+    // MARK: Launch + poll
 
-    func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        // loadObject(ofClass: URL.self) 是 Apple 建議的現代 API，比手動用 "public.file-url"
-        // 字串比對更可靠，對雲端硬碟（Dropbox/iCloud 等 File Provider）掛載的資料夾支援也比較好。
-        guard provider.canLoadObject(ofClass: URL.self) else { return false }
-        _ = provider.loadObject(ofClass: URL.self) { url, _ in
-            guard let folderURL = url else { return }
-            DispatchQueue.main.async {
-                lastLaunched = folderURL.lastPathComponent
-                launchAndAutoOpen(path: folderURL.path)
-            }
-        }
-        return true
-    }
-
-    func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "選擇"
-        if panel.runModal() == .OK, let url = panel.url {
-            lastLaunched = url.lastPathComponent
-            launchAndAutoOpen(path: url.path)
-        }
-    }
-
-    // 記下啟動前已存在的 dev port，啟動後輪詢直到出現「新的」dev port，
-    // 代表這次拖進來的專案已經真的跑起來了，就自動打開瀏覽器。
-    // 全程在背景執行緒跑（lsof/ps 都是阻塞呼叫），只用 main.async 更新畫面狀態。
-    func launchAndAutoOpen(path: String) {
+    private func launchAndAutoOpen(path: String) {
         isLaunching = true
         launchStatus = "正在偵測專案類型…"
+        rebuildHeroCard()
         let token = UUID()
         pollToken = token
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let before = Set(fetchPorts().filter { $0.isDev }.map { $0.port })
             launchProject(at: path)
 
-            // 給 smart-launch.sh 一點時間把偵測結果寫進 label 檔，再判斷是不是原生 App
             Thread.sleep(forTimeInterval: 0.5)
             if isLikelyNonWebLaunch() {
                 DispatchQueue.main.async {
-                    guard self.pollToken == token else { return }
+                    guard let self = self, self.pollToken == token else { return }
                     self.isLaunching = false
                     self.launchStatus = ""
                     self.lastLaunched += "（已開啟）"
+                    self.rebuildHeroCard()
                 }
                 return
             }
 
             DispatchQueue.main.async {
-                if self.pollToken == token {
-                    self.launchStatus = "已在 Terminal 啟動，等待服務就緒…"
-                }
+                guard let self = self, self.pollToken == token else { return }
+                self.launchStatus = "已在 Terminal 啟動，等待服務就緒…"
+                self.rebuildHeroCard()
             }
 
-            self.pollForNewServer(before: before, attemptsLeft: pollMaxAttempts, token: token)
+            self?.pollForNewServer(before: before, attemptsLeft: pollMaxAttempts, token: token)
         }
     }
 
-    func cancelWaiting() {
-        pollToken = UUID() // 換一個新 token，讓還在跑的輪詢自己發現「過期」而停止
+    private func cancelWaiting() {
+        pollToken = UUID()
         isLaunching = false
         launchStatus = ""
+        rebuildHeroCard()
     }
 
-    // 在背景執行緒遞迴輪詢；每次都先睡 1 秒再檢查。Docker Desktop 冷啟動可能要一分鐘以上，
-    // 所以給足時間；即使這裡超時放棄，Terminal 裡的指令仍會繼續跑，不需要重新拖曳資料夾。
-    // token 用來偵測使用者是否已按「先不等了」或另外拖了新專案進來，過期就直接停止。
-    func pollForNewServer(before: Set<String>, attemptsLeft: Int, token: UUID) {
+    private func pollForNewServer(before: Set<String>, attemptsLeft: Int, token: UUID) {
         guard attemptsLeft > 0 else {
-            DispatchQueue.main.async {
-                guard self.pollToken == token else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.pollToken == token else { return }
                 self.isLaunching = false
                 self.launchStatus = ""
                 self.autoExpiredNotice = "已啟動，但沒有偵測到新的網頁 port（可能是原生 App、純後端／資料庫服務，本來就不會有網頁；若還在等 Docker，可以到 Terminal 視窗確認進度，不需要重新拖曳）"
+                self.rebuildHeroCard()
+                self.rebuildAutoClose()
                 self.refresh()
             }
             return
         }
         Thread.sleep(forTimeInterval: 1)
         var stillCurrent = true
-        DispatchQueue.main.sync { stillCurrent = (self.pollToken == token) }
+        DispatchQueue.main.sync { [weak self] in stillCurrent = (self?.pollToken == token) }
         guard stillCurrent else { return }
 
         let elapsed = pollMaxAttempts - attemptsLeft + 1
-        let logLine = lastLogLine()
-        DispatchQueue.main.async {
-            guard self.pollToken == token else { return }
-            if logLine.isEmpty {
-                self.launchStatus = "等待服務就緒…（已等待 \(elapsed) 秒，隨時可以到 Terminal 查看）"
-            } else {
-                self.launchStatus = "\(logLine)\n（已等待 \(elapsed) 秒）"
+        if elapsed % 3 == 0 || elapsed == 1 {
+            let logLine = lastLogLine()
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.pollToken == token else { return }
+                if logLine.isEmpty {
+                    self.launchStatus = "等待服務就緒…（已等待 \(elapsed) 秒，隨時可以到 Terminal 查看）"
+                } else {
+                    self.launchStatus = "\(logLine)\n（已等待 \(elapsed) 秒）"
+                }
+                self.rebuildHeroCard()
             }
         }
         let current = fetchPorts().filter { $0.isDev }
         if let newOne = current.first(where: { !before.contains($0.port) }) {
-            DispatchQueue.main.async {
-                guard self.pollToken == token else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.pollToken == token else { return }
                 self.isLaunching = false
                 self.launchStatus = ""
+                self.rebuildHeroCard()
                 self.refresh()
                 self.openBrowser(port: newOne.port)
             }
@@ -1095,3 +1469,62 @@ struct ContentView: View {
         }
     }
 }
+
+// MARK: - App
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var window: NSWindow!
+    var mainViewController: MainViewController!
+
+    // 徹底關掉 macOS 的「上次意外退出，要不要重新打開視窗」對話框。
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let vc = MainViewController()
+        mainViewController = vc
+        let win = NSWindow(contentViewController: vc)
+        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
+        win.isRestorable = false
+        win.setFrameAutosaveName("")
+        win.isReleasedWhenClosed = false
+        win.minSize = NSSize(width: 480, height: 620)
+
+        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let size = NSSize(width: 480, height: 680)
+        let origin = NSPoint(
+            x: screenFrame.midX - size.width / 2,
+            y: screenFrame.midY - size.height / 2
+        )
+        win.setFrame(NSRect(origin: origin, size: size), display: true)
+
+        window = win
+
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+
+    // 拖到 Dock 圖示或用「打開檔案」開啟資料夾時觸發
+    func application(_ application: NSApplication, open urls: [URL]) {
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        for url in urls {
+            mainViewController?.handleOpenURL(url)
+        }
+    }
+}
+
+let delegate = AppDelegate()
+let app = NSApplication.shared
+app.setActivationPolicy(.regular)
+app.delegate = delegate
+app.run()
