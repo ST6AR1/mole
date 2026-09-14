@@ -592,54 +592,6 @@ func makeBadge(_ text: String, bg: NSColor, fg: NSColor) -> NSView {
     return card
 }
 
-// 一個會輕輕脈動的綠色小圓點 + "Running" 文字，標示服務正在運行中。
-final class RunningIndicatorView: NSView {
-    private let dot = NSView()
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-    }
-
-    convenience init() {
-        self.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-
-        dot.wantsLayer = true
-        dot.layer?.cornerRadius = 3
-        dot.layer?.backgroundColor = NSColor(calibratedRed: 0.525, green: 0.788, blue: 0.541, alpha: 1).cgColor
-        dot.translatesAutoresizingMaskIntoConstraints = false
-
-        let label = NSTextField(labelWithString: "Running")
-        label.font = NSFont.systemFont(ofSize: 11)
-        label.textColor = NSColor(calibratedRed: 0.227, green: 0.486, blue: 0.251, alpha: 1)
-
-        let stack = NSStackView(views: [dot, label])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 5
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            dot.widthAnchor.constraint(equalToConstant: 6),
-            dot.heightAnchor.constraint(equalToConstant: 6),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.35
-        pulse.duration = 1.0
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        dot.layer?.add(pulse, forKey: "pulse")
-    }
-    required init?(coder: NSCoder) { fatalError() }
-}
-
 // 一個 12x12 的圓角灰底小圈點，永遠放在文字之間當分隔符。
 func dotSeparator() -> NSView {
     let label = NSTextField(labelWithString: "·")
@@ -873,7 +825,11 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         urlButton.toolTip = "\(info.uptime)\n\(info.command)"
 
         let processBadge = makeBadge(info.processName, bg: .plRowBgMuted, fg: .plTextSecondary)
-        let runningIndicator = RunningIndicatorView()
+        // 拿掉會呼吸的綠色圓點，改成單純的綠字「Running」——那顆點本身佔掉的寬度
+        // 跟它自己的內距，就是「Running 跟時間隔太遠」視覺上的主因之一。
+        let runningIndicator = NSTextField(labelWithString: "Running")
+        runningIndicator.font = NSFont.systemFont(ofSize: 11)
+        runningIndicator.textColor = NSColor(calibratedRed: 0.227, green: 0.486, blue: 0.251, alpha: 1)
         let durationLabel = NSTextField(labelWithString: shortUptime(info.uptimeSeconds))
         durationLabel.font = NSFont.systemFont(ofSize: 11)
         durationLabel.textColor = .plTextTertiary
