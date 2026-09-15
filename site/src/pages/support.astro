@@ -1,9 +1,9 @@
 ---
 // Support Mole — a dedicated, low-pressure page for optional donations.
-// Payment methods per region are placeholders (methods array + "coming
-// soon" note) until the maker provides real links/QR codes for each one.
-// To go live for a region: replace that region's card body with a real
-// link/QR image, keep the same card shell for visual consistency.
+// One flat list of methods (src/i18n/en.ts: support.methods): each entry
+// is either live (ready: true, highlighted, clickable if it has an href,
+// or the WeChat QR block if `qr: true`) or still pending (ready: false,
+// muted, tagged "Preparing"). Flip `ready` and add `href` to go live.
 import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
@@ -32,41 +32,48 @@ const release = await getLatestRelease();
         <p class="muted">{dict.support.intro}</p>
       </div>
 
-      <div class="container region-grid">
-        {
-          dict.support.regions.map((region, i) => (
-            <article class="region-card reveal" style={`transition-delay:${i * 90}ms`}>
-              <h2>{region.title}</h2>
-              {!region.ready && <span class="coming-soon">{dict.support.comingSoon}</span>}
-              <p class="region-note muted">{region.note}</p>
+      <div class="container container--narrow">
+        <h2 class="methods-heading reveal">{dict.support.methodsHeading}</h2>
 
-              {region.key === "china" && (
-                <div class="qr-wrap">
-                  <Image src={wechatQr} alt="WeChat Pay reward QR code" width={160} loading="lazy" />
-                  {region.qrCaption && <span class="qr-caption muted">{region.qrCaption}</span>}
+        <div class="methods-grid">
+          {
+            dict.support.methods.map((m, i) =>
+              m.qr ? (
+                <div
+                  class:list={["method-card", "method-card--qr", "reveal", { "is-ready": m.ready }]}
+                  style={`transition-delay:${i * 60}ms`}
+                >
+                  <Image src={wechatQr} alt="WeChat Pay reward QR code" width={140} loading="lazy" />
+                  <span class="method-label">{m.label}</span>
+                  {m.qrCaption && <span class="qr-caption muted">{m.qrCaption}</span>}
                 </div>
-              )}
+              ) : m.ready && m.href ? (
+                <a
+                  href={m.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="method-card is-ready reveal"
+                  style={`transition-delay:${i * 60}ms`}
+                >
+                  <span class="method-label">{m.label}</span>
+                </a>
+              ) : (
+                <div class="method-card reveal" style={`transition-delay:${i * 60}ms`}>
+                  <span class="method-label">{m.label}</span>
+                  <span class="preparing-badge">{dict.support.preparing}</span>
+                </div>
+              ),
+            )
+          }
+        </div>
 
-              {region.methods.length > 0 && (
-                <ul class="method-list">
-                  {region.methods.map((m) =>
-                    m.href ? (
-                      <li>
-                        <a href={m.href} target="_blank" rel="noopener noreferrer" class="method-link">
-                          {m.label}
-                        </a>
-                      </li>
-                    ) : (
-                      <li class="method-chip">{m.label}</li>
-                    ),
-                  )}
-                </ul>
-              )}
-
-              {region.contactNote && <p class="contact-note muted">{region.contactNote}</p>}
-            </article>
-          ))
-        }
+        <div class="contact-block reveal">
+          <h3>{dict.support.contactHeading}</h3>
+          <p class="muted">{dict.support.contactBody}</p>
+          <a class="contact-email" href={`mailto:${dict.support.contactEmail}`}>
+            {dict.support.contactEmail}
+          </a>
+        </div>
       </div>
 
       <div class="container container--narrow support-footer reveal">
@@ -96,99 +103,108 @@ const release = await getLatestRelease();
     margin-top: var(--sp-2);
   }
 
-  .region-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--sp-6);
-    max-width: var(--content-width);
+  .methods-heading {
+    text-align: center;
+    margin-bottom: var(--sp-8);
   }
 
-  .region-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--sp-6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-2);
-  }
-
-  .region-card h2 {
-    font-size: 1.125rem;
-  }
-
-  .coming-soon {
-    align-self: flex-start;
-    font-size: var(--fs-small);
-    font-weight: 600;
-    color: var(--soil-light);
-    background: color-mix(in srgb, var(--butter) 30%, var(--surface-warm));
-    padding: 0.2em 0.75em;
-    border-radius: var(--radius-pill);
-  }
-
-  .region-note {
-    font-size: 0.875rem;
-  }
-
-  .contact-note {
-    font-size: 0.8125rem;
-    margin-top: var(--sp-2);
-    padding-top: var(--sp-2);
-    border-top: 1px solid var(--border);
-  }
-
-  .method-list {
-    list-style: none;
-    margin: var(--sp-2) 0 0;
-    padding: 0;
+  .methods-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--sp-2);
+    justify-content: center;
+    gap: var(--sp-4);
   }
 
-  .method-chip {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
+  .method-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-1);
+    min-width: 140px;
+    padding: var(--sp-4) var(--sp-5);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
-    padding: 0.3em 0.85em;
-  }
-
-  .method-link {
-    display: inline-block;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--soil);
-    background: color-mix(in srgb, var(--folder-blue) 14%, var(--surface));
-    border: 1px solid var(--folder-blue);
-    border-radius: var(--radius-pill);
-    padding: 0.3em 0.85em;
+    background: var(--surface-warm);
     text-decoration: none;
-    transition: background-color var(--dur-fast) var(--ease-out);
+    color: var(--text-muted);
   }
 
-  .method-link:hover {
-    background: color-mix(in srgb, var(--folder-blue) 26%, var(--surface));
+  .method-card.is-ready {
+    background: color-mix(in srgb, var(--folder-blue) 12%, var(--surface));
+    border-color: var(--folder-blue);
   }
 
-  .qr-wrap {
+  a.method-card.is-ready {
+    transition:
+      transform var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+
+  a.method-card.is-ready:hover {
+    background: color-mix(in srgb, var(--folder-blue) 24%, var(--surface));
+    transform: translateY(-2px);
+  }
+
+  .method-card.is-ready .method-label {
+    color: var(--soil);
+    font-weight: 700;
+  }
+
+  .method-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .preparing-badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+
+  .method-card--qr {
+    padding-block: var(--sp-3);
+  }
+
+  .method-card--qr :global(img) {
+    width: 100px;
+    height: auto;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: var(--sp-2);
+  }
+
+  .qr-caption {
+    font-size: 0.6875rem;
+  }
+
+  .contact-block {
+    text-align: center;
+    max-width: 440px;
+    margin: var(--sp-16) auto 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--sp-2);
-    padding-block: var(--sp-2);
   }
 
-  .qr-wrap :global(img) {
-    width: 140px;
-    height: auto;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
+  .contact-block h3 {
+    font-size: 1.0625rem;
   }
 
-  .qr-caption {
-    font-size: 0.75rem;
+  .contact-email {
+    margin-top: var(--sp-1);
+    font-weight: 600;
+    color: var(--soil);
+    text-decoration: none;
+    border-bottom: 1px solid var(--folder-blue);
+  }
+
+  .contact-email:hover {
+    color: var(--soil-hover);
   }
 
   .support-footer {
@@ -212,9 +228,10 @@ const release = await getLatestRelease();
     text-decoration: underline;
   }
 
-  @media (max-width: 800px) {
-    .region-grid {
-      grid-template-columns: 1fr;
+  @media (max-width: 480px) {
+    .method-card {
+      min-width: 0;
+      flex: 1 1 calc(50% - var(--sp-4));
     }
   }
 </style>

@@ -91,17 +91,20 @@ export interface Dictionary {
     metaDescription: string;
     heading: string;
     intro: string;
-    comingSoon: string;
+    preparing: string;
     footnote: string;
     backHome: string;
-    regions: {
+    methodsHeading: string;
+    methods: {
       key: string;
-      title: string;
-      note: string;
+      label: string;
       ready: boolean;
-      methods: { label: string; href?: string }[];
+      href?: string;
+      qr?: boolean;
       qrCaption?: string;
-      contactNote?: string;
     }[];
+    contactHeading: string;
+    contactBody: string;
+    contactEmail: string;
   };
 }

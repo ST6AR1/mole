@@ -131,39 +131,39 @@ export const en: Dictionary = {
       "Mole is free and stays free. If you'd like to say thanks, here are a few optional ways to support it.",
     heading: "Support Mole",
     intro:
-      "Mole is free and will stay free. If it saved you some time and you'd like to say thanks, here are a few ways — completely optional. This page fills in gradually as each region's options are set up.",
-    comingSoon: "Coming soon",
+      "Mole is free and will stay free. If it saved you some time and you'd like to say thanks, here are the ways to do it right now — completely optional. More are being added over time.",
+    preparing: "Preparing",
     footnote:
       "No pressure, no subscription, no account required. Mole works exactly the same whether or not you use any of these.",
     backHome: "Back to Mole",
-    regions: [
+    methodsHeading: "Ways to support",
+    methods: [
       {
-        key: "taiwan",
-        title: "Taiwan",
-        note: "If you'd like to sponsor, please contact the author directly.",
-        ready: false,
-        methods: [{ label: "LINE Pay" }, { label: "街口支付" }],
+        key: "bmc",
+        label: "Buy Me a Coffee",
+        ready: true,
+        href: "https://buymeacoffee.com/st6ar1",
       },
       {
-        key: "china",
-        title: "China",
-        note: "微信讚賞碼，掃碼即可。",
+        key: "kofi",
+        label: "Ko-fi",
         ready: true,
-        methods: [],
+        href: "https://ko-fi.com/wen",
+      },
+      {
+        key: "wechat",
+        label: "WeChat Pay",
+        ready: true,
+        qr: true,
         qrCaption: "微信支付 · 掃碼支持",
-        contactNote: "如果需要支付寶，請聯繫作者。",
       },
-      {
-        key: "global",
-        title: "Global",
-        note: "Both accept major debit/credit cards; Ko-fi also takes PayPal.",
-        ready: true,
-        methods: [
-          { label: "Buy Me a Coffee", href: "https://buymeacoffee.com/st6ar1" },
-          { label: "Ko-fi", href: "https://ko-fi.com/wen" },
-          { label: "GitHub Sponsors" },
-        ],
-      },
+      { key: "linepay", label: "LINE Pay", ready: false },
+      { key: "jkopay", label: "街口支付", ready: false },
+      { key: "ghsponsors", label: "GitHub Sponsors", ready: false },
     ],
+    contactHeading: "Don't see your way?",
+    contactBody:
+      "Alipay, a Taiwan option, or anything else — just ask and it'll get added.",
+    contactEmail: "st6ar1@gmail.com",
   },
 };
