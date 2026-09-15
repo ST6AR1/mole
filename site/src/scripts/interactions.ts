@@ -37,44 +37,9 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
   revealEls.forEach((el) => revealObserver.observe(el));
 }
 
-// --- Mole Moment: one-shot dig-in sequence ---------------------------------
-const digScene = document.querySelector<HTMLElement>('[data-anim="dig-poke"]');
-if (digScene && !reduceMotion) {
-  let played = false;
-  // Deliberately slow enough to read as the mole popping up in three beats,
-  // not a flicker — each frame holds for half a second before the next.
-  const frames = [0, 1, 2];
-  const frameDelayMs = 520;
-  const startDelayMs = 200;
-  const playSequence = () => {
-    if (played) return;
-    played = true;
-    frames.forEach((frame, i) => {
-      window.setTimeout(
-        () => {
-          digScene.dataset.frame = String(frame);
-        },
-        startDelayMs + i * frameDelayMs,
-      );
-    });
-  };
-
-  const digObserver = new IntersectionObserver(
-    (entries, obs) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          playSequence();
-          obs.disconnect();
-        }
-      }
-    },
-    { threshold: 0.4 },
-  );
-  digObserver.observe(digScene);
-} else if (digScene) {
-  // Reduced motion: land straight on the "mole visible" frame, no sequence.
-  digScene.dataset.frame = "2";
-}
+// Note: the Mole Moment mound animation is now a real looping GIF the maker
+// authored (MoleArt pose "dig-loop"), swapped for a static frame under
+// prefers-reduced-motion via CSS alone — see MoleMoment.astro. No JS needed.
 
 // --- Hero mascot: very subtle cursor-follow + blink ------------------------
 const heroMole = document.querySelector<HTMLElement>(".hero-mole");

@@ -154,12 +154,7 @@ const showEmptyRunning = scene === "default";
             <>
               <ul class="proj-list">
                 <li>
-                  <span class="proj-folder" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                      <rect x="2" y="7" width="20" height="13" rx="2.5" fill="var(--folder-blue)" />
-                      <path d="M2 7 L2 5 a2 2 0 0 1 2-2 h5 l2 2.5 h9 a2 2 0 0 1 2 2" fill="var(--folder-blue-deep)" />
-                    </svg>
-                  </span>
+                  <MoleArt pose="folder" width={20} alt="" decorative class="proj-folder-img" />
                   <span class="proj-text">
                     <span class="proj-name">portfolio-site</span>
                     <span class="proj-meta muted">localhost:5173 · Vite · Running · 12 min</span>
@@ -170,12 +165,7 @@ const showEmptyRunning = scene === "default";
                   </span>
                 </li>
                 <li>
-                  <span class="proj-folder" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                      <rect x="2" y="7" width="20" height="13" rx="2.5" fill="var(--folder-blue)" />
-                      <path d="M2 7 L2 5 a2 2 0 0 1 2-2 h5 l2 2.5 h9 a2 2 0 0 1 2 2" fill="var(--folder-blue-deep)" />
-                    </svg>
-                  </span>
+                  <MoleArt pose="folder" width={20} alt="" decorative class="proj-folder-img" />
                   <span class="proj-text">
                     <span class="proj-name">recipe-app</span>
                     <span class="proj-meta muted">localhost:3000 · Next.js · Running · 4 min</span>
@@ -186,12 +176,7 @@ const showEmptyRunning = scene === "default";
                   </span>
                 </li>
                 <li>
-                  <span class="proj-folder" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                      <rect x="2" y="7" width="20" height="13" rx="2.5" fill="var(--folder-blue)" />
-                      <path d="M2 7 L2 5 a2 2 0 0 1 2-2 h5 l2 2.5 h9 a2 2 0 0 1 2 2" fill="var(--folder-blue-deep)" />
-                    </svg>
-                  </span>
+                  <MoleArt pose="folder" width={20} alt="" decorative class="proj-folder-img" />
                   <span class="proj-text">
                     <span class="proj-name">design-system</span>
                     <span class="proj-meta muted">localhost:8080 · static · Running · 1 min</span>
@@ -249,6 +234,27 @@ const showEmptyRunning = scene === "default";
     background: var(--surface-warm);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-window);
+    transition:
+      transform var(--dur-med) var(--ease-out),
+      box-shadow var(--dur-med) var(--ease-out);
+  }
+
+  @media (hover: hover) {
+    .app-frame:hover {
+      transform: translateY(-5px);
+      box-shadow:
+        0 1px 2px rgba(30, 29, 27, 0.08),
+        0 28px 56px -18px rgba(30, 29, 27, 0.22);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-frame {
+      transition: none;
+    }
+    .app-frame:hover {
+      transform: none;
+    }
   }
 
   /* Only the direct-child real screenshot <Image> should stretch to fill the
@@ -531,10 +537,9 @@ const showEmptyRunning = scene === "default";
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
   }
-  .proj-folder {
+  /* :global() — MoleArt's <img> lives outside this file's style scope. */
+  .proj-list :global(.proj-folder-img) {
     flex: 0 0 auto;
-    display: grid;
-    place-items: center;
   }
   .proj-text {
     flex: 1 1 auto;

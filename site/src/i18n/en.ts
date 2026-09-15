@@ -106,6 +106,9 @@ export const en: Dictionary = {
     howToOpenSummary: "First time opening Mole?",
     howToOpenBody:
       "Mole isn't notarized by Apple yet, so macOS will warn that it's from an unidentified developer. In Finder, Control-click mole.app and choose Open — you only need to do this once.",
+    limitationsSummary: "Not every setup is tested yet",
+    limitationsBody:
+      "Mole is macOS only for now — getting this version solid before looking at other platforms. Project-type detection is tested against common setups, but not every framework, package manager, or machine configuration yet. If something doesn't work on yours, open an issue on GitHub and it'll get worked through.",
   },
   footer: {
     github: "GitHub",
@@ -120,5 +123,37 @@ export const en: Dictionary = {
     heading: "Nothing here.",
     body: "Mole must have dug off somewhere else.",
     cta: "Back home",
+  },
+  support: {
+    metaTitle: "Support Mole",
+    metaDescription:
+      "Mole is free and stays free. If you'd like to say thanks, here are a few optional ways to support it.",
+    heading: "Support Mole",
+    intro:
+      "Mole is free and will stay free. If it saved you some time and you'd like to say thanks, here are a few ways — completely optional. This page fills in gradually as each region's options are set up.",
+    comingSoon: "Coming soon",
+    footnote:
+      "No pressure, no subscription, no account required. Mole works exactly the same whether or not you use any of these.",
+    backHome: "Back to Mole",
+    regions: [
+      {
+        key: "taiwan",
+        title: "Taiwan",
+        note: "Local options are being set up.",
+        methods: ["LINE Pay", "街口支付", "ATM 轉帳"],
+      },
+      {
+        key: "global",
+        title: "Global",
+        note: "International options are being set up.",
+        methods: ["Buy Me a Coffee", "GitHub Sponsors", "PayPal"],
+      },
+      {
+        key: "china",
+        title: "Mainland China",
+        note: "本地支付方式準備中。",
+        methods: ["支付宝", "微信支付"],
+      },
+    ],
   },
 };

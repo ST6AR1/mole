@@ -1,0 +1,177 @@
+---
+// Support Mole — a dedicated, low-pressure page for optional donations.
+// Payment methods per region are placeholders (methods array + "coming
+// soon" note) until the maker provides real links/QR codes for each one.
+// To go live for a region: replace that region's card body with a real
+// link/QR image, keep the same card shell for visual consistency.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import MoleArt from "../components/MoleArt.astro";
+import { getDictionary } from "../i18n";
+import { getLatestRelease } from "../data/release";
+import { withBase } from "../utils/url";
+
+const dict = getDictionary();
+const release = await getLatestRelease();
+
+const regionEmoji: Record<string, string> = {
+  taiwan: "🇹🇼",
+  global: "🌐",
+  china: "🇨🇳",
+};
+---
+
+<BaseLayout
+  title={`${dict.support.metaTitle} — Mole`}
+  description={dict.support.metaDescription}
+  path="/support"
+>
+  <Header dict={dict} />
+  <main id="main">
+    <section class="section">
+      <div class="container container--narrow support-head reveal">
+        <MoleArt pose="wrench" width={72} alt="Mole holding a wrench" />
+        <h1>{dict.support.heading}</h1>
+        <p class="muted">{dict.support.intro}</p>
+      </div>
+
+      <div class="container region-grid">
+        {
+          dict.support.regions.map((region, i) => (
+            <article class="region-card reveal" style={`transition-delay:${i * 90}ms`}>
+              <div class="region-head">
+                <span class="region-flag" aria-hidden="true">
+                  {regionEmoji[region.key] ?? "🌏"}
+                </span>
+                <h2>{region.title}</h2>
+              </div>
+              <span class="coming-soon">{dict.support.comingSoon}</span>
+              <p class="region-note muted">{region.note}</p>
+              <ul class="method-list">
+                {region.methods.map((m) => (
+                  <li>{m}</li>
+                ))}
+              </ul>
+            </article>
+          ))
+        }
+      </div>
+
+      <div class="container container--narrow support-footer reveal">
+        <p class="muted">{dict.support.footnote}</p>
+        <a class="back-link" href={withBase("/")}>
+          ← {dict.support.backHome}
+        </a>
+      </div>
+    </section>
+  </main>
+  <Footer dict={dict} release={release} />
+</BaseLayout>
+
+<style>
+  .support-head {
+    text-align: center;
+    max-width: 560px;
+    margin-inline: auto;
+    margin-bottom: var(--sp-16);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+
+  .support-head h1 {
+    margin-top: var(--sp-2);
+  }
+
+  .region-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-6);
+    max-width: var(--content-width);
+  }
+
+  .region-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .region-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .region-flag {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .region-head h2 {
+    font-size: 1.125rem;
+  }
+
+  .coming-soon {
+    align-self: flex-start;
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--soil-light);
+    background: color-mix(in srgb, var(--butter) 30%, var(--surface-warm));
+    padding: 0.2em 0.75em;
+    border-radius: var(--radius-pill);
+  }
+
+  .region-note {
+    font-size: 0.875rem;
+  }
+
+  .method-list {
+    list-style: none;
+    margin: var(--sp-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .method-list li {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    padding: 0.3em 0.85em;
+  }
+
+  .support-footer {
+    text-align: center;
+    max-width: 480px;
+    margin-inline: auto;
+    margin-top: var(--sp-16);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-4);
+  }
+
+  .back-link {
+    font-weight: 600;
+    color: var(--soil);
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 800px) {
+    .region-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

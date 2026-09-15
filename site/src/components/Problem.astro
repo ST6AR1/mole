@@ -10,10 +10,10 @@ const { dict } = Astro.props;
 
 <section class="problem section">
   <div class="container problem-grid">
-    <div class="problem-lines reveal">
-      <p>{dict.problem.line1}</p>
-      <p>{dict.problem.line2}</p>
-      <p class="is-emph">{dict.problem.line3}</p>
+    <div class="problem-lines">
+      <p class="reveal line-1">{dict.problem.line1}</p>
+      <p class="reveal line-2">{dict.problem.line2}</p>
+      <p class="is-emph reveal line-3">{dict.problem.line3}</p>
     </div>
 
     <div class="problem-questions">
@@ -56,6 +56,16 @@ const { dict } = Astro.props;
     color: var(--text);
   }
 
+  .line-1 {
+    transition-delay: 0ms;
+  }
+  .line-2 {
+    transition-delay: 160ms;
+  }
+  .line-3 {
+    transition-delay: 320ms;
+  }
+
   .problem-questions {
     display: flex;
     flex-wrap: wrap;
@@ -66,12 +76,15 @@ const { dict } = Astro.props;
 
   .q1 {
     transform: rotate(-4deg);
+    transition-delay: 0ms;
   }
   .q2 {
     transform: rotate(2deg);
+    transition-delay: 140ms;
   }
   .q3 {
     transform: rotate(-2deg);
+    transition-delay: 280ms;
   }
 
   /* :global() — MoleArt's <img> lives outside this file's style scope. */

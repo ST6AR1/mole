@@ -11,7 +11,7 @@ const { dict } = Astro.props;
 ---
 
 <section class="mole-moment section">
-  <div class="container scene-wrap reveal" data-anim="dig-poke" data-frame="0">
+  <div class="container scene-wrap reveal">
     <div class="ground-line" aria-hidden="true">
       <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-a" />
       <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-b" />
@@ -19,9 +19,10 @@ const { dict } = Astro.props;
     </div>
 
     <div class="mound-stack" aria-hidden="true">
-      <MoleArt pose="dig-0" width={220} alt="" decorative class="frame frame-0" />
-      <MoleArt pose="dig-1" width={220} alt="" decorative class="frame frame-1" />
-      <MoleArt pose="dig-2" width={220} alt="" decorative class="frame frame-2" />
+      {/* Looping GIF the maker made of the full dig cycle. Swapped for a
+         static "popped up" frame under prefers-reduced-motion (CSS below). */}
+      <MoleArt pose="dig-loop" width={220} alt="" decorative class="dig-motion" />
+      <MoleArt pose="dig-1" width={220} alt="" decorative class="dig-still" loading="eager" />
     </div>
 
     <div class="moment-copy">
@@ -78,22 +79,23 @@ const { dict } = Astro.props;
     height: 170px;
   }
 
-  .mound-stack :global(.frame) {
+  .mound-stack :global(img) {
     position: absolute;
     inset: 0;
     margin-inline: auto;
-    opacity: 0;
-    transform: scale(0.94) translateY(4px);
-    transition:
-      opacity 420ms var(--ease-out),
-      transform 420ms var(--ease-out);
   }
 
-  [data-frame="0"] :global(.frame-0),
-  [data-frame="1"] :global(.frame-1),
-  [data-frame="2"] :global(.frame-2) {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+  .mound-stack :global(.dig-still) {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mound-stack :global(.dig-motion) {
+      display: none;
+    }
+    .mound-stack :global(.dig-still) {
+      display: block;
+    }
   }
 
   .moment-copy p {

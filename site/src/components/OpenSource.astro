@@ -1,7 +1,7 @@
 ---
 import type { Dictionary } from "../i18n/types";
 import MoleArt from "./MoleArt.astro";
-import { REPO_URL } from "../utils/url";
+import { REPO_URL, withBase } from "../utils/url";
 
 interface Props {
   dict: Dictionary;
@@ -35,8 +35,7 @@ const { dict, stars } = Astro.props;
           {dict.openSource.ctaGithub}
           {stars !== null && <span class="star-count">{stars}</span>}
         </a>
-        {/* TODO: point at the real sponsor page once one exists (Buy Me a Coffee / GitHub Sponsors) */}
-        <a class="support-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+        <a class="support-link" href={withBase("/support")}>
           {dict.openSource.support}
         </a>
       </div>

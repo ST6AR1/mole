@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
+import LogoBand from "../components/LogoBand.astro";
 import Hero from "../components/Hero.astro";
 import Problem from "../components/Problem.astro";
 import Solution from "../components/Solution.astro";
@@ -22,6 +23,7 @@ const [release, stars] = await Promise.all([
 
 <BaseLayout title={dict.meta.title} description={dict.meta.description} path="/">
   <Header dict={dict} />
+  <LogoBand />
   <main id="main">
     <Hero dict={dict} release={release} />
     <Problem dict={dict} />

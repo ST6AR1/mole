@@ -69,6 +69,8 @@ export interface Dictionary {
     size: string;
     howToOpenSummary: string;
     howToOpenBody: string;
+    limitationsSummary: string;
+    limitationsBody: string;
   };
   footer: {
     github: string;
@@ -82,5 +84,20 @@ export interface Dictionary {
     heading: string;
     body: string;
     cta: string;
+  };
+  support: {
+    metaTitle: string;
+    metaDescription: string;
+    heading: string;
+    intro: string;
+    comingSoon: string;
+    footnote: string;
+    backHome: string;
+    regions: {
+      key: string;
+      title: string;
+      note: string;
+      methods: string[];
+    }[];
   };
 }

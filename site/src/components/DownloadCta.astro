@@ -37,6 +37,11 @@ const { dict, release } = Astro.props;
       <p class="muted">{dict.download.howToOpenBody}</p>
     </details>
 
+    <details class="how-to-open">
+      <summary>{dict.download.limitationsSummary}</summary>
+      <p class="muted">{dict.download.limitationsBody}</p>
+    </details>
+
     <MoleArt
       pose="hold-folder-idle"
       width={110}
@@ -91,9 +96,14 @@ const { dict, release } = Astro.props;
 
   .how-to-open {
     margin-top: var(--sp-8);
-    display: inline-block;
+    display: block;
+    margin-inline: auto;
     text-align: left;
     max-width: 46ch;
+  }
+
+  .how-to-open + .how-to-open {
+    margin-top: var(--sp-4);
   }
 
   .how-to-open summary {
