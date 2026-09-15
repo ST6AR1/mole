@@ -5,7 +5,7 @@ let stringsFR: [String: String] = [
     "tagline": "Oubliez les commandes, passez au travail.",
     "drop.title": "Déposez votre dossier de projet ici",
     "drop.subtitle": "Pas besoin de retenir les commandes, je m'en occupe",
-    "drop.button": "Choisir un dossier",
+    "drop.button": "Choisir dossier",
     "drop.doodle": "drag it!",
     "drop.hover.title": "drop it here",
     "drop.hover.subtitle": "Je l'ai !",
