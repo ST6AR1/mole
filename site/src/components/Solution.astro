@@ -1,7 +1,6 @@
 ---
 import type { Dictionary } from "../i18n/types";
 import Screenshot, { type Scene } from "./Screenshot.astro";
-import MoleArt from "./MoleArt.astro";
 
 interface Props {
   dict: Dictionary;
@@ -34,15 +33,6 @@ const altText = [
             </div>
             <div class="step-visual reveal">
               <Screenshot scene={scenes[i]} alt={altText[i]} />
-              {i === 1 && (
-                <MoleArt
-                  pose="dig-2"
-                  width={72}
-                  alt=""
-                  decorative
-                  class="step-mole"
-                />
-              )}
             </div>
           </li>
         ))
@@ -105,12 +95,6 @@ const altText = [
     justify-content: center;
   }
 
-  .step-visual :global(.step-mole) {
-    position: absolute;
-    left: -20px;
-    bottom: -18px;
-    filter: drop-shadow(0 8px 14px rgba(30, 29, 27, 0.16));
-  }
 
   @media (max-width: 800px) {
     .step,
