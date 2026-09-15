@@ -9,7 +9,7 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.3"
+let currentVersion = "1.0.4"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/mole/releases/latest"
 
 // 用「打開瀏覽器到預填好的 GitHub 新 issue 頁面」取代真正的自動回報後端——

@@ -60,12 +60,15 @@ enum AppLanguage: String, CaseIterable {
     // `Locale` APIs rather than naive string-prefix matching, since macOS
     // reports Chinese locales as e.g. `zh-Hant-TW` / `zh-Hans-CN`, not the
     // literal strings `zh-TW` / `zh-CN`.
+    // Uses the older `Locale.components(fromIdentifier:)` API (not the macOS-13+
+    // `Locale.language.*` properties) since this app's LSMinimumSystemVersion is
+    // 12.0 and must not require a newer OS just to detect the system language.
     static func detectFromSystem() -> AppLanguage {
         for identifier in Locale.preferredLanguages {
-            let locale = Locale(identifier: identifier)
-            let languageCode = locale.language.languageCode?.identifier ?? ""
-            let script = locale.language.script?.identifier
-            let region = locale.language.region?.identifier
+            let components = Locale.components(fromIdentifier: identifier)
+            let languageCode = components[NSLocale.Key.languageCode.rawValue] ?? ""
+            let script = components[NSLocale.Key.scriptCode.rawValue]
+            let region = components[NSLocale.Key.countryCode.rawValue]
 
             switch languageCode {
             case "zh":

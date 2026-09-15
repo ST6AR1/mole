@@ -8,8 +8,12 @@ APP="mole.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo ">> Compiling Swift source..."
-swiftc -O -o "$APP/Contents/MacOS/mole" App/main.swift App/Localization/*.swift
+echo ">> Compiling Swift source (arm64 + x86_64 universal binary)..."
+BUILD_TMP="$(mktemp -d)"
+swiftc -O -target arm64-apple-macosx12.0 -o "$BUILD_TMP/mole-arm64" App/main.swift App/Localization/*.swift
+swiftc -O -target x86_64-apple-macosx12.0 -o "$BUILD_TMP/mole-x86_64" App/main.swift App/Localization/*.swift
+lipo -create -output "$APP/Contents/MacOS/mole" "$BUILD_TMP/mole-arm64" "$BUILD_TMP/mole-x86_64"
+rm -rf "$BUILD_TMP"
 chmod +x "$APP/Contents/MacOS/mole"
 
 echo ">> Copying Info.plist..."
