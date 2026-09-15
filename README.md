@@ -6,6 +6,8 @@ English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [�
 
 <p align="center">Skip the commands, get to work.<br>別管指令，直接開工。</p>
 
+<p align="center"><a href="https://st6ar1.github.io/mole/">st6ar1.github.io/mole</a></p>
+
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>
@@ -103,6 +105,7 @@ MIT — see [LICENSE](LICENSE). Free and open source; use it, fork it, ship your
 - `bin/smart-launch.sh`: the shell script that detects project types and builds launch commands
 - `build.sh`: compiles and packages the `.app`
 - `make-dmg.sh`: packages a distributable `.dmg`
+- `site/`: the official website ([Astro](https://astro.build)), deployed to GitHub Pages — see `site/README.md`
 
 Cutting a release:
 

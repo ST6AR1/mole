@@ -6,6 +6,8 @@
 
 <p align="center">Esqueça os comandos, vá direto para o trabalho.<br>Skip the commands, get to work.</p>
 
+<p align="center"><a href="https://st6ar1.github.io/mole/">st6ar1.github.io/mole</a></p>
+
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>

@@ -1,0 +1,129 @@
+---
+import type { Dictionary } from "../i18n/types";
+import Screenshot, { type Scene } from "./Screenshot.astro";
+import MoleArt from "./MoleArt.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+
+const scenes: Scene[] = ["hover", "detecting", "running"];
+const altText = [
+  "Mole's drop zone highlighted while a folder is dragged over it",
+  "Mole analyzing a dropped project, checking its type and launch command",
+  "Mole's Running Projects list after a successful launch",
+];
+---
+
+<section class="solution section" id="how-it-works">
+  <div class="container">
+    <div class="solution-head reveal">
+      <span class="eyebrow">{dict.solution.eyebrow}</span>
+      <h2>{dict.solution.heading}</h2>
+    </div>
+
+    <ol class="steps">
+      {
+        dict.solution.steps.map((step, i) => (
+          <li class:list={["step", { "step--reverse": i % 2 === 1 }]}>
+            <div class="step-copy reveal">
+              <span class="step-index doodle">{`0${i + 1}`}</span>
+              <h3>{step.title}</h3>
+              <p class="muted">{step.body}</p>
+            </div>
+            <div class="step-visual reveal">
+              <Screenshot scene={scenes[i]} alt={altText[i]} />
+              {i === 1 && (
+                <MoleArt
+                  pose="dig-2"
+                  width={72}
+                  alt=""
+                  decorative
+                  class="step-mole"
+                />
+              )}
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .solution-head {
+    text-align: center;
+    max-width: 640px;
+    margin-inline: auto;
+    margin-bottom: var(--sp-24);
+  }
+
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-24);
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 2rem + 3vw, 5rem);
+  }
+
+  .step--reverse .step-copy {
+    order: 2;
+  }
+
+  .step--reverse .step-visual {
+    order: 1;
+  }
+
+  .step-index {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: var(--sp-2);
+    color: var(--soil-light);
+  }
+
+  .step-copy h3 {
+    margin-bottom: var(--sp-3);
+  }
+
+  .step-copy p {
+    max-width: 40ch;
+    font-size: 1.0625rem;
+  }
+
+  .step-visual {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  .step-visual :global(.step-mole) {
+    position: absolute;
+    left: -20px;
+    bottom: -18px;
+    filter: drop-shadow(0 8px 14px rgba(30, 29, 27, 0.16));
+  }
+
+  @media (max-width: 800px) {
+    .step,
+    .step--reverse .step-copy,
+    .step--reverse .step-visual {
+      order: initial;
+      grid-template-columns: 1fr;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-8);
+      text-align: left;
+    }
+  }
+</style>

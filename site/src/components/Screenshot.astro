@@ -1,0 +1,514 @@
+---
+// Swappable "App UI" slot used across the Hero, Solution, and Features
+// sections. Every real screenshot request in mole-site-plan.md maps to one
+// `scene` value here. Once a real capture exists:
+//
+//   import running3 from "../assets/screenshots/running-3.png";
+//   <Screenshot scene="running" src={running3} alt="Mole showing three running projects" />
+//
+// The `src` image replaces the placeholder mock automatically — no other
+// markup on the page needs to change.
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+export type Scene =
+  | "default"
+  | "hover"
+  | "detecting"
+  | "running"
+  | "update-banner"
+  | "settings";
+
+interface Props {
+  scene: Scene;
+  src?: ImageMetadata;
+  alt: string;
+  priority?: boolean;
+  class?: string;
+}
+
+const { scene, src, alt, priority = false, class: className } = Astro.props;
+---
+
+<figure class:list={["app-frame", className]} data-scene={scene}>
+  {
+    src ? (
+      <Image
+        src={src}
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        widths={[480, 720, 960, 1200]}
+        sizes="(max-width: 640px) 92vw, (max-width: 1024px) 60vw, 520px"
+      />
+    ) : (
+      <div class="mock" role="img" aria-label={alt}>
+        <div class="mock-titlebar">
+          <span class="tl tl-red" aria-hidden="true"></span>
+          <span class="tl tl-yellow" aria-hidden="true"></span>
+          <span class="tl tl-green" aria-hidden="true"></span>
+          <span class="mock-word">mole</span>
+          <span class="mock-tag">Skip the commands, get to work.</span>
+        </div>
+
+        {scene === "update-banner" && (
+          <div class="mock-banner">
+            <span>Mole has a new version</span>
+            <span class="mock-banner-ver">v1.0.3 → v1.0.4</span>
+            <span class="mock-banner-cta">View Update</span>
+          </div>
+        )}
+
+        <div class="mock-body">
+          {(scene === "default" || scene === "hover" || scene === "update-banner") && (
+            <div class:list={["drop-zone", { "is-hover": scene === "hover" }]}>
+              <div class="drop-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 48" width="34" height="34">
+                  <rect x="4" y="14" width="40" height="26" rx="4" fill="var(--folder-blue)" />
+                  <path d="M4 14 L4 9 a3 3 0 0 1 3-3 h10 l4 5 h20 a3 3 0 0 1 3 3" fill="var(--folder-blue-deep)" />
+                </svg>
+              </div>
+              <p class="drop-title">{scene === "hover" ? "Drop it here" : "Drop your project folder here"}</p>
+              <p class="drop-sub muted">
+                {scene === "hover" ? "Got it!" : "No commands to remember — I'll figure it out"}
+              </p>
+              {scene !== "hover" && <span class="pill-btn">Choose Folder</span>}
+            </div>
+          )}
+
+          {scene === "detecting" && (
+            <div class="detect-card">
+              <p class="detect-title">Analyzing project</p>
+              <p class="detect-sub muted">Let's see what's in this folder</p>
+              <ul class="detect-list">
+                <li class="done">Project type <b>Vite</b></li>
+                <li class="done">Package manager <b>npm</b></li>
+                <li class="pending">Finding an open port</li>
+                <li class="pending">Starting localhost</li>
+              </ul>
+            </div>
+          )}
+
+          {scene === "running" && (
+            <>
+              <div class="row-head">
+                <span>Running Projects</span>
+                <span class="link-sm">Stop All</span>
+              </div>
+              <ul class="proj-list">
+                <li>
+                  <span class="proj-dot" style="background:var(--folder-blue)" />
+                  <span class="proj-text">
+                    <span class="proj-name">portfolio-site</span>
+                    <span class="proj-meta muted">localhost:5173 · Vite · 12 min</span>
+                  </span>
+                  <span class="proj-icons">
+                    <span class="proj-pin" aria-hidden="true">☆</span>
+                    <span class="proj-stop" aria-hidden="true">✕</span>
+                  </span>
+                </li>
+                <li>
+                  <span class="proj-dot" style="background:var(--butter)" />
+                  <span class="proj-text">
+                    <span class="proj-name">recipe-app</span>
+                    <span class="proj-meta muted">localhost:3000 · Next.js · 4 min</span>
+                  </span>
+                  <span class="proj-icons">
+                    <span class="proj-pin is-pinned" aria-hidden="true">★</span>
+                    <span class="proj-stop" aria-hidden="true">✕</span>
+                  </span>
+                </li>
+                <li>
+                  <span class="proj-dot" style="background:var(--sage)" />
+                  <span class="proj-text">
+                    <span class="proj-name">design-system</span>
+                    <span class="proj-meta muted">localhost:8080 · static · 1 min</span>
+                  </span>
+                  <span class="proj-icons">
+                    <span class="proj-pin" aria-hidden="true">☆</span>
+                    <span class="proj-stop" aria-hidden="true">✕</span>
+                  </span>
+                </li>
+              </ul>
+              <div class="autoclose-row muted">Auto Close <b>2 hours</b></div>
+            </>
+          )}
+
+          {scene === "settings" && (
+            <div class="settings-mock">
+              <div class="settings-tabs">
+                <span class="is-active">General</span>
+                <span>Story</span>
+                <span>About</span>
+              </div>
+              <div class="settings-row">
+                <span>Auto Close</span>
+                <span class="muted">2 hours (default)</span>
+              </div>
+              <div class="settings-row">
+                <span>Open browser automatically</span>
+                <span class="toggle is-on" aria-hidden="true"></span>
+              </div>
+              <div class="settings-row">
+                <span>Language</span>
+                <span class="muted">English</span>
+              </div>
+              <div class="settings-about muted">
+                Mole v1.0.4 · MIT License · github.com/ST6AR1/mole
+              </div>
+            </div>
+          )}
+        </div>
+        <span class="mock-tag-corner">Screenshot placeholder</span>
+      </div>
+    )
+  }
+</figure>
+
+<style>
+  .app-frame {
+    margin: 0;
+    width: 100%;
+    max-width: 460px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--surface-warm);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-window);
+  }
+
+  .app-frame :global(img) {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .mock {
+    position: relative;
+    aspect-ratio: 9 / 10;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-warm);
+    font-size: 0.8rem;
+  }
+
+  .mock-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+  }
+
+  .tl {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .tl-red {
+    background: #ff5f56;
+  }
+  .tl-yellow {
+    background: #ffbd2e;
+  }
+  .tl-green {
+    background: #27c93f;
+  }
+
+  .mock-word {
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-left: 6px;
+    color: var(--text);
+  }
+
+  .mock-tag {
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+    margin-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mock-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: color-mix(in srgb, var(--butter) 35%, var(--surface-warm));
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .mock-banner-ver {
+    color: var(--text-muted);
+  }
+  .mock-banner-cta {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--soil);
+    text-decoration: underline;
+  }
+
+  .mock-body {
+    flex: 1;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .drop-zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 24px 16px;
+    background: var(--surface);
+    transition:
+      border-color var(--dur-med) var(--ease-out),
+      background var(--dur-med) var(--ease-out);
+  }
+
+  .drop-zone.is-hover {
+    border-color: var(--folder-blue-deep);
+    border-style: solid;
+    background: color-mix(in srgb, var(--folder-blue) 12%, var(--surface));
+  }
+
+  .drop-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+  }
+
+  .drop-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text);
+  }
+
+  .drop-sub {
+    font-size: 0.75rem;
+  }
+
+  .pill-btn {
+    margin-top: 6px;
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: var(--radius-pill);
+    background: var(--soil);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .detect-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 18px;
+  }
+  .detect-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .detect-sub {
+    font-size: 0.75rem;
+    margin-top: 2px;
+  }
+  .detect-list {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+  .detect-list li {
+    padding-left: 18px;
+    position: relative;
+    color: var(--text-muted);
+  }
+  .detect-list li b {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .detect-list li.done::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--sage);
+    font-weight: 700;
+  }
+  .detect-list li.pending::before {
+    content: "•";
+    position: absolute;
+    left: 3px;
+    color: var(--text-faint);
+  }
+
+  .row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .link-sm {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--danger);
+  }
+
+  .proj-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .proj-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .proj-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .proj-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .proj-name {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .proj-meta {
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .proj-icons {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .proj-pin,
+  .proj-stop {
+    font-size: 0.8125rem;
+    line-height: 1;
+    color: var(--text-faint);
+  }
+  .proj-pin.is-pinned {
+    color: var(--butter);
+    filter: saturate(2) brightness(0.85);
+  }
+  .proj-stop {
+    color: var(--danger);
+    opacity: 0.7;
+  }
+
+  .autoclose-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+  }
+  .autoclose-row b {
+    color: var(--text);
+  }
+
+  .settings-mock {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .settings-tabs {
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .settings-tabs .is-active {
+    color: var(--text);
+    border-bottom: 2px solid var(--soil);
+    padding-bottom: 8px;
+    margin-bottom: -9px;
+  }
+  .settings-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    padding: 6px 0;
+  }
+  .toggle {
+    width: 30px;
+    height: 17px;
+    border-radius: var(--radius-pill);
+    background: var(--border-strong);
+    position: relative;
+  }
+  .toggle.is-on {
+    background: var(--sage);
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+  }
+  .toggle.is-on::after {
+    left: 15px;
+  }
+  .settings-about {
+    font-size: 0.6875rem;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .mock-tag-corner {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    font-size: 0.625rem;
+    color: var(--text-faint);
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+</style>

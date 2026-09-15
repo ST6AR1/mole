@@ -1,0 +1,14 @@
+{
+  "name": "Mole",
+  "short_name": "Mole",
+  "description": "Drop a project folder, run it in the background, open localhost.",
+  "start_url": "/mole/",
+  "scope": "/mole/",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#f7f5f0",
+  "icons": [
+    { "src": "/mole/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/mole/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

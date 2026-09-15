@@ -1,0 +1,82 @@
+---
+interface Props {
+  href: string;
+  variant?: "primary" | "secondary";
+  class?: string;
+  external?: boolean;
+}
+
+const {
+  href,
+  variant = "primary",
+  class: className,
+  external = false,
+} = Astro.props;
+---
+
+<a
+  href={href}
+  class:list={["btn", `btn--${variant}`, className]}
+  target={external ? "_blank" : undefined}
+  rel={external ? "noopener noreferrer" : undefined}
+>
+  <slot />
+</a>
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    padding: 0.75em 1.5em;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      transform var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .btn--primary {
+    background: var(--soil);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(30, 29, 27, 0.12);
+  }
+
+  .btn--primary:hover {
+    background: var(--soil-hover);
+    transform: translateY(1px);
+    box-shadow: 0 1px 1px rgba(30, 29, 27, 0.1);
+  }
+
+  .btn--primary:active {
+    transform: translateY(2px) scale(0.99);
+  }
+
+  .btn--secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+  }
+
+  .btn--secondary:hover {
+    border-color: var(--soil-light);
+    background: var(--surface);
+    transform: translateY(1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn {
+      transition: none;
+    }
+    .btn:hover,
+    .btn:active {
+      transform: none;
+    }
+  }
+</style>

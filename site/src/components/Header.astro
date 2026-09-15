@@ -1,0 +1,145 @@
+---
+import type { Dictionary } from "../i18n/types";
+import { withBase, REPO_URL, RELEASES_URL } from "../utils/url";
+import MoleArt from "./MoleArt.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+---
+
+<header class="site-header" id="site-header">
+  <div class="container container--wide header-inner">
+    <a href={withBase("/")} class="brand" aria-label="Mole home">
+      <MoleArt pose="wordmark-logo" width={160} alt="Mole" class="brand-mark" />
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="#features">{dict.nav.features}</a>
+      <a href={withBase("/changelog")}>{dict.nav.changelog}</a>
+      <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
+        >{dict.nav.github}</a
+      >
+    </nav>
+
+    <a href={RELEASES_URL} class="header-cta" target="_blank" rel="noopener noreferrer">
+      {dict.nav.download}
+    </a>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color var(--dur-med) var(--ease-out),
+      box-shadow var(--dur-med) var(--ease-out);
+  }
+
+  .site-header.is-scrolled {
+    border-bottom-color: var(--border);
+    box-shadow: 0 4px 16px -12px rgba(30, 29, 27, 0.2);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    height: 72px;
+    transition: height var(--dur-med) var(--ease-out);
+  }
+
+  .is-scrolled .header-inner {
+    height: 56px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  /*
+    MoleArt renders an <Image> from a *different* .astro file, so it never
+    carries this component's data-astro-cid scope attribute — a plain
+    `.brand-mark { … }` rule would silently never match. `:global()` opts
+    that one class out of scoping. Same pattern everywhere else in this
+    codebase that styles a MoleArt/Screenshot/Button child by class.
+  */
+  .brand :global(.brand-mark) {
+    height: 32px;
+    width: auto;
+    transition: height var(--dur-med) var(--ease-out);
+  }
+
+  .is-scrolled .brand :global(.brand-mark) {
+    height: 24px;
+  }
+
+  .nav {
+    display: flex;
+    gap: var(--sp-6);
+    margin-inline-start: var(--sp-6);
+    flex: 1;
+  }
+
+  .nav a {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .nav a:hover {
+    color: var(--text);
+  }
+
+  .header-cta {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5em 1.25em;
+    border-radius: var(--radius-pill);
+    background: var(--soil);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition:
+      transform var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .header-cta:hover {
+    background: var(--soil-hover);
+    transform: translateY(1px);
+  }
+
+  @media (max-width: 640px) {
+    .nav {
+      display: none;
+    }
+    .header-inner {
+      height: 60px;
+    }
+    .is-scrolled .header-inner {
+      height: 52px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header-inner,
+    .brand-mark,
+    .header-cta {
+      transition: none;
+    }
+  }
+</style>

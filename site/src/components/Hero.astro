@@ -1,0 +1,157 @@
+---
+import type { Dictionary } from "../i18n/types";
+import type { ReleaseInfo } from "../data/release";
+import Button from "./Button.astro";
+import Screenshot from "./Screenshot.astro";
+import MoleArt from "./MoleArt.astro";
+import { REPO_URL } from "../utils/url";
+
+interface Props {
+  dict: Dictionary;
+  release: ReleaseInfo;
+}
+const { dict, release } = Astro.props;
+---
+
+<section class="hero">
+  <div class="container container--wide hero-grid">
+    <div class="hero-copy">
+      <span class="hero-tagline">{dict.hero.tagline}</span>
+      <h1>
+        {dict.hero.h1Line1}<br />
+        {dict.hero.h1Line2}
+      </h1>
+      <p class="hero-subhead">{dict.hero.subhead}</p>
+
+      <div class="hero-ctas">
+        <Button href={release.downloadUrl} external>
+          {dict.hero.ctaPrimary}
+        </Button>
+        <Button href={REPO_URL} variant="secondary" external>
+          {dict.hero.ctaSecondary}
+        </Button>
+      </div>
+
+      <p class="hero-meta muted">
+        Mole v{release.version} · {dict.hero.versionLine}
+      </p>
+    </div>
+
+    <div class="hero-visual" id="hero-visual">
+      <Screenshot
+        scene="running"
+        alt="Mole's main window showing three projects running on localhost"
+        priority
+        class="hero-screenshot"
+      />
+      <MoleArt
+        pose="carry-folder"
+        width={132}
+        alt="Mole the mascot holding a folder, peeking out from behind the window"
+        class="hero-mole"
+        loading="eager"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-block-start: clamp(2.5rem, 2rem + 3vw, 5rem);
+    padding-block-end: var(--section-gap);
+    overflow: visible;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 2rem + 2vw, 4rem);
+  }
+
+  .hero-tagline {
+    display: inline-block;
+    font-family: var(--font-hand);
+    font-size: 1.25rem;
+    color: var(--soil-light);
+    margin-bottom: var(--sp-3);
+    transform: rotate(-2deg);
+  }
+
+  .hero-copy h1 {
+    max-width: 12ch;
+  }
+
+  .hero-subhead {
+    margin-top: var(--sp-6);
+    font-size: 1.125rem;
+    line-height: var(--lh-body);
+    color: var(--text-muted);
+    max-width: 46ch;
+  }
+
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    margin-top: var(--sp-8);
+  }
+
+  .hero-meta {
+    margin-top: var(--sp-4);
+    font-size: var(--fs-small);
+  }
+
+  .hero-visual {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  .hero-visual :global(.hero-screenshot) {
+    max-width: 480px;
+    width: 100%;
+  }
+
+  .hero-visual :global(.hero-mole) {
+    position: absolute;
+    right: -18px;
+    bottom: -34px;
+    width: clamp(88px, 12vw, 132px);
+    height: auto;
+    filter: drop-shadow(0 12px 20px rgba(30, 29, 27, 0.18));
+    transform-origin: bottom center;
+  }
+
+  @media (max-width: 900px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      text-align: left;
+    }
+
+    .hero-visual {
+      order: -1;
+      width: 112%;
+      margin-inline-start: -6%;
+    }
+
+    .hero-copy h1 {
+      max-width: none;
+      font-size: var(--fs-h1);
+    }
+
+    .hero-subhead {
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .hero-ctas {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .hero-ctas :global(.btn) {
+      width: 100%;
+    }
+  }
+</style>

@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Hero from "../components/Hero.astro";
+import Problem from "../components/Problem.astro";
+import Solution from "../components/Solution.astro";
+import Features from "../components/Features.astro";
+import MoleMoment from "../components/MoleMoment.astro";
+import VibeCoding from "../components/VibeCoding.astro";
+import OpenSource from "../components/OpenSource.astro";
+import DownloadCta from "../components/DownloadCta.astro";
+import Footer from "../components/Footer.astro";
+import { getDictionary } from "../i18n";
+import { getLatestRelease, getStarCount } from "../data/release";
+
+const dict = getDictionary();
+const [release, stars] = await Promise.all([
+  getLatestRelease(),
+  getStarCount(),
+]);
+---
+
+<BaseLayout title={dict.meta.title} description={dict.meta.description} path="/">
+  <Header dict={dict} />
+  <main id="main">
+    <Hero dict={dict} release={release} />
+    <Problem dict={dict} />
+    <Solution dict={dict} />
+    <Features dict={dict} />
+    <MoleMoment dict={dict} />
+    <VibeCoding dict={dict} />
+    <OpenSource dict={dict} stars={stars} />
+    <DownloadCta dict={dict} release={release} />
+  </main>
+  <Footer dict={dict} release={release} />
+</BaseLayout>

@@ -1,0 +1,91 @@
+---
+import type { Dictionary } from "../i18n/types";
+import MoleArt from "./MoleArt.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+---
+
+<section class="problem section">
+  <div class="container problem-grid">
+    <div class="problem-lines reveal">
+      <p>{dict.problem.line1}</p>
+      <p>{dict.problem.line2}</p>
+      <p class="is-emph">{dict.problem.line3}</p>
+    </div>
+
+    <div class="problem-questions">
+      <span class="q q1 doodle reveal">{dict.problem.q1}</span>
+      <span class="q q2 doodle reveal">{dict.problem.q2}</span>
+      <span class="q q3 doodle reveal">{dict.problem.q3}</span>
+    </div>
+
+    <MoleArt
+      pose="confused"
+      width={150}
+      alt="A confused-looking Mole, lying down with a small speech bubble"
+      class="problem-mole reveal"
+    />
+  </div>
+</section>
+
+<style>
+  .problem-grid {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: var(--sp-16);
+  }
+
+  .problem-lines {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .problem-lines p {
+    font-size: var(--fs-h2);
+    font-weight: 700;
+    letter-spacing: var(--tracking-tight);
+    color: var(--text-muted);
+  }
+
+  .problem-lines .is-emph {
+    color: var(--text);
+  }
+
+  .problem-questions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-8) var(--sp-16);
+    max-width: 640px;
+  }
+
+  .q1 {
+    transform: rotate(-4deg);
+  }
+  .q2 {
+    transform: rotate(2deg);
+  }
+  .q3 {
+    transform: rotate(-2deg);
+  }
+
+  /* :global() — MoleArt's <img> lives outside this file's style scope. */
+  .problem-grid :global(.problem-mole) {
+    width: 150px;
+    height: auto;
+  }
+
+  @media (max-width: 640px) {
+    .problem-lines p {
+      font-size: var(--fs-h3);
+    }
+    .problem-questions {
+      gap: var(--sp-6);
+    }
+  }
+</style>

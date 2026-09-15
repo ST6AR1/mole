@@ -1,0 +1,156 @@
+---
+import type { Dictionary } from "../i18n/types";
+import type { ReleaseInfo } from "../data/release";
+import Button from "./Button.astro";
+import MoleArt from "./MoleArt.astro";
+import { REPO_URL } from "../utils/url";
+
+interface Props {
+  dict: Dictionary;
+  release: ReleaseInfo;
+}
+const { dict, release } = Astro.props;
+---
+
+<section class="download section" id="download">
+  <div class="container download-inner reveal">
+    <h2>{dict.download.heading}</h2>
+
+    <div class="download-ctas">
+      <Button href={release.downloadUrl} external>
+        {dict.download.ctaPrimary}
+      </Button>
+      <Button href={REPO_URL} variant="secondary" external>
+        {dict.download.ctaSecondary}
+      </Button>
+    </div>
+
+    <dl class="download-facts muted">
+      <div><dt class="visually-hidden">Version</dt><dd>{dict.download.version} v{release.version}</dd></div>
+      <div><dt class="visually-hidden">Platform</dt><dd>{dict.download.platform}</dd></div>
+      <div><dt class="visually-hidden">Architecture</dt><dd>{dict.download.arch}</dd></div>
+      <div><dt class="visually-hidden">Size</dt><dd>{dict.download.size}</dd></div>
+    </dl>
+
+    <details class="how-to-open">
+      <summary>{dict.download.howToOpenSummary}</summary>
+      <p class="muted">{dict.download.howToOpenBody}</p>
+    </details>
+
+    <MoleArt
+      pose="hold-folder-idle"
+      width={110}
+      alt=""
+      decorative
+      class="download-mole"
+    />
+  </div>
+</section>
+
+<style>
+  .download-inner {
+    position: relative;
+    text-align: center;
+    max-width: 620px;
+    margin-inline: auto;
+    padding-bottom: var(--sp-16);
+  }
+
+  .download-ctas {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    margin-top: var(--sp-8);
+  }
+
+  .download-facts {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-6);
+    margin-top: var(--sp-6);
+    font-size: var(--fs-small);
+    list-style: none;
+    padding: 0;
+  }
+
+  .download-facts div {
+    display: contents;
+  }
+
+  .download-facts dd {
+    margin: 0;
+  }
+
+  .download-facts div:not(:last-child) dd::after {
+    content: "·";
+    margin-left: var(--sp-6);
+    color: var(--text-faint);
+  }
+
+  .how-to-open {
+    margin-top: var(--sp-8);
+    display: inline-block;
+    text-align: left;
+    max-width: 46ch;
+  }
+
+  .how-to-open summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    list-style: none;
+  }
+
+  .how-to-open summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .how-to-open summary::before {
+    content: "＋ ";
+    color: var(--soil-light);
+  }
+
+  .how-to-open[open] summary::before {
+    content: "－ ";
+  }
+
+  .how-to-open p {
+    margin-top: var(--sp-3);
+    font-size: 0.875rem;
+    line-height: var(--lh-body);
+  }
+
+  /* :global() — MoleArt's <img> lives outside this file's style scope. */
+  .download-inner :global(.download-mole) {
+    position: absolute;
+    bottom: -8px;
+    right: 6%;
+    width: 90px;
+    height: auto;
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity var(--dur-slow) var(--ease-out),
+      transform var(--dur-slow) var(--ease-out);
+  }
+
+  .download-inner.is-visible :global(.download-mole) {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (max-width: 480px) {
+    .download-ctas {
+      flex-direction: column;
+    }
+    .download-ctas :global(.btn) {
+      width: 100%;
+    }
+    .download-inner :global(.download-mole) {
+      display: none;
+    }
+  }
+</style>

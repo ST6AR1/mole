@@ -1,0 +1,23 @@
+{
+  "name": "mole-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "config": {
+    "note": "ASTRO_TELEMETRY_DISABLED=1 is set in CI (see .github/workflows/deploy-site.yml) to match Mole's own no-telemetry stance."
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^5.7.2"
+  }
+}

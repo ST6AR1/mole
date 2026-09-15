@@ -1,0 +1,114 @@
+---
+// The brand-memory beat: lots of whitespace, one small piece of motion.
+// No feature copy here on purpose — see mole-site-plan.md section 05.
+import type { Dictionary } from "../i18n/types";
+import MoleArt from "./MoleArt.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+---
+
+<section class="mole-moment section">
+  <div class="container scene-wrap reveal" data-anim="dig-poke" data-frame="0">
+    <div class="ground-line" aria-hidden="true">
+      <span class="folder folder-a" aria-hidden="true"></span>
+      <span class="folder folder-b" aria-hidden="true"></span>
+      <span class="folder folder-c" aria-hidden="true"></span>
+    </div>
+
+    <div class="mound-stack" aria-hidden="true">
+      <MoleArt pose="dig-0" width={220} alt="" decorative class="frame frame-0" />
+      <MoleArt pose="dig-1" width={220} alt="" decorative class="frame frame-1" />
+      <MoleArt pose="dig-2" width={220} alt="" decorative class="frame frame-2" />
+    </div>
+
+    <div class="moment-copy">
+      <p class="muted">{dict.moleMoment.line1}</p>
+      <p class="muted">{dict.moleMoment.line2}</p>
+      <p class="moment-emph">{dict.moleMoment.line3}</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mole-moment {
+    background: var(--surface-warm);
+  }
+
+  .scene-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--sp-12);
+  }
+
+  .ground-line {
+    position: relative;
+    width: min(520px, 90%);
+    height: 1px;
+    background: var(--border-strong);
+  }
+
+  .folder {
+    position: absolute;
+    bottom: 6px;
+    width: 34px;
+    height: 26px;
+    background: var(--folder-blue);
+    border: 1.5px solid var(--folder-blue-deep);
+    border-radius: 3px;
+  }
+
+  .folder-a {
+    left: 8%;
+    transform: rotate(-6deg);
+  }
+  .folder-b {
+    left: 48%;
+    transform: rotate(3deg) translateY(-6px);
+  }
+  .folder-c {
+    left: 82%;
+    transform: rotate(-2deg);
+  }
+
+  .mound-stack {
+    position: relative;
+    width: 220px;
+    height: 170px;
+  }
+
+  .mound-stack :global(.frame) {
+    position: absolute;
+    inset: 0;
+    margin-inline: auto;
+    opacity: 0;
+    transition: opacity var(--dur-med) var(--ease-out);
+  }
+
+  [data-frame="0"] :global(.frame-0),
+  [data-frame="1"] :global(.frame-1),
+  [data-frame="2"] :global(.frame-2) {
+    opacity: 1;
+  }
+
+  .moment-copy p {
+    font-size: var(--fs-h3);
+  }
+
+  .moment-emph {
+    color: var(--text);
+    font-weight: 700;
+    margin-top: var(--sp-2);
+  }
+
+  @media (max-width: 640px) {
+    .mound-stack {
+      width: 170px;
+      height: 132px;
+    }
+  }
+</style>
