@@ -101,6 +101,7 @@ export interface Dictionary {
       ready: boolean;
       methods: { label: string; href?: string }[];
       qrCaption?: string;
+      contactNote?: string;
     }[];
   };
 }

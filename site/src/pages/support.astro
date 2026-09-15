@@ -16,12 +16,6 @@ import wechatQr from "../assets/support/wechat-qr.png";
 
 const dict = getDictionary();
 const release = await getLatestRelease();
-
-const regionEmoji: Record<string, string> = {
-  taiwan: "🇹🇼",
-  global: "🌐",
-  china: "🇨🇳",
-};
 ---
 
 <BaseLayout
@@ -42,12 +36,7 @@ const regionEmoji: Record<string, string> = {
         {
           dict.support.regions.map((region, i) => (
             <article class="region-card reveal" style={`transition-delay:${i * 90}ms`}>
-              <div class="region-head">
-                <span class="region-flag" aria-hidden="true">
-                  {regionEmoji[region.key] ?? "🌏"}
-                </span>
-                <h2>{region.title}</h2>
-              </div>
+              <h2>{region.title}</h2>
               {!region.ready && <span class="coming-soon">{dict.support.comingSoon}</span>}
               <p class="region-note muted">{region.note}</p>
 
@@ -73,6 +62,8 @@ const regionEmoji: Record<string, string> = {
                   )}
                 </ul>
               )}
+
+              {region.contactNote && <p class="contact-note muted">{region.contactNote}</p>}
             </article>
           ))
         }
@@ -122,18 +113,7 @@ const regionEmoji: Record<string, string> = {
     gap: var(--sp-2);
   }
 
-  .region-head {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-  }
-
-  .region-flag {
-    font-size: 1.5rem;
-    line-height: 1;
-  }
-
-  .region-head h2 {
+  .region-card h2 {
     font-size: 1.125rem;
   }
 
@@ -149,6 +129,13 @@ const regionEmoji: Record<string, string> = {
 
   .region-note {
     font-size: 0.875rem;
+  }
+
+  .contact-note {
+    font-size: 0.8125rem;
+    margin-top: var(--sp-2);
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--border);
   }
 
   .method-list {
