@@ -17,7 +17,7 @@
 ## 為什麼做這個
 
 <p align="center">
-  <img src="docs/screenshots/story.png" width="480" alt="為什麼做這個 App">
+  <img src="docs/screenshots/story.png" width="280" alt="為什麼做這個 App">
 </p>
 
 我不是專業開發者。Vibe coding 做久了，專案越來越多，啟動指令記不住，連 localhost 開了哪些也常常搞不清楚。
