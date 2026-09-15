@@ -30,23 +30,19 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
     </nav>
 
     <div class="header-right">
-      <div class="lang-switch" aria-label="Language">
-        {
-          readyLocales.map((l, i) => (
-            <>
-              {i > 0 && <span class="lang-dot" aria-hidden="true">·</span>}
-              {l.code === locale ? (
-                <span class="lang-current" aria-current="true">
-                  {l.label}
-                </span>
-              ) : (
-                <a href={getRelativeLocaleUrl(l.code, routePath)} lang={l.code}>
-                  {l.label}
-                </a>
-              )}
-            </>
-          ))
-        }
+      <div class="lang-switch">
+        <select class="lang-select" aria-label="Language" data-lang-select>
+          {
+            readyLocales.map((l) => (
+              <option value={getRelativeLocaleUrl(l.code, routePath)} selected={l.code === locale}>
+                {l.label}
+              </option>
+            ))
+          }
+        </select>
+        <svg class="lang-chevron" viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
+          <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </div>
 
       <a href={RELEASES_URL} class="header-cta" target="_blank" rel="noopener noreferrer">
@@ -55,6 +51,19 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
     </div>
   </div>
 </header>
+
+<script>
+  // Native <select> as the language dropdown: each option's value is the
+  // full URL for the same page in that locale, so switching is just a
+  // navigation. Scoped to this component's own selects so multiple Header
+  // instances (there's only ever one, but just in case) don't double-bind.
+  document.querySelectorAll<HTMLSelectElement>("[data-lang-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const url = select.value;
+      if (url) window.location.href = url;
+    });
+  });
+</script>
 
 <style>
   .site-header {
@@ -138,29 +147,40 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
   }
 
   .lang-switch {
-    display: flex;
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    gap: 0.4em;
+  }
+
+  .lang-select {
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
     font-size: 0.8125rem;
-    white-space: nowrap;
-  }
-
-  .lang-switch a {
-    color: var(--text-faint);
-    text-decoration: none;
-  }
-
-  .lang-switch a:hover {
+    font-weight: 500;
     color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-pill);
+    padding: 0.4em 1.75em 0.4em 0.9em;
+    cursor: pointer;
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
   }
 
-  .lang-current {
+  .lang-select:hover {
     color: var(--text);
-    font-weight: 600;
+    border-color: var(--soil-light);
   }
 
-  .lang-dot {
-    color: var(--border-strong);
+  .lang-chevron {
+    position: absolute;
+    right: 0.65em;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-faint);
+    pointer-events: none;
   }
 
   .header-cta {
@@ -196,8 +216,9 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
     .header-right {
       gap: var(--sp-3);
     }
-    .lang-switch {
+    .lang-select {
       font-size: 0.75rem;
+      padding: 0.35em 1.6em 0.35em 0.75em;
     }
   }
 
