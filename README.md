@@ -1,75 +1,116 @@
+English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)
+
 <p align="center">
   <img src="icon/mole-poses/wordmark-logo.png" width="160" alt="mole logo">
 </p>
 
-<p align="center">別管指令，直接開工。<br>Skip the commands, get to work.</p>
+<p align="center">Skip the commands, get to work.<br>別管指令，直接開工。</p>
 
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main.png" width="480" alt="mole 主畫面：把專案資料夾拖進去，自動偵測並啟動">
+  <img src="docs/screenshots/main.png" width="480" alt="mole's main window: drop a project folder in, it detects and launches automatically">
 </p>
 
-一個 macOS 小工具：把專案資料夾拖進去，mole 會自動判斷是什麼類型的專案、在背景幫你跑起來、打開瀏覽器，全程不會跳出一堆 Terminal 視窗。也能隨時看到目前有哪些 localhost 服務在跑，一鍵關閉。
+A tiny macOS utility: drop a project folder in, and mole figures out what kind of project it is, runs it in the background, and opens your browser — no pile of Terminal windows. You can also see exactly which localhost services are currently running, and stop them with one click.
 
-## 為什麼做這個
+## Why I made this
 
 <p align="center">
-  <img src="docs/screenshots/story.png" width="280" alt="為什麼做這個 App">
+  <img src="docs/screenshots/story.png" width="280" alt="Why I made this app">
 </p>
 
-我不是專業開發者。Vibe coding 做久了，專案越來越多，啟動指令記不住，連 localhost 開了哪些也常常搞不清楚。
+I'm not a professional developer. After a lot of vibe coding, I ended up with more and more projects, couldn't remember the start commands, and kept losing track of which localhost ports were even running.
 
-我又不想每次只是為了重新把專案跑起來，就再問一次 AI。
+And I didn't want to ask an AI all over again just to get a project running.
 
-所以做了 mole。把資料夾丟進來，剩下交給它。
+So I made mole. Drop in the folder, and it takes care of the rest.
 
-## 功能
+## Features
 
-- **拖曳啟動**：把資料夾拖進視窗，或用「選擇資料夾」，自動偵測專案類型並啟動——支援 Node.js（npm / pnpm / yarn / bun）、靜態網頁、Python、Ruby / Rails、Go、Rust、Docker Compose、Deno、PHP、Flutter、Java / Kotlin、.NET、Chrome 擴充功能、原生 macOS App 等等
-- **完全在背景執行**：不會再跳出 Terminal 視窗——啟動指令的輸出還是有記錄，只是不用再忍受視窗一直堆起來
-- **Running Projects 清單**：每個服務會自動抓網站的 `<title>` 或 favicon，一眼看出是哪個專案；常駐（⭐️）跟 Stop（✕）都是看得到、按得到的圖示，不用點開選單
-- **Auto Close**：可設定多久沒用就自動關閉閒置的服務，標記常駐的專案不受影響
-- **中英雙語介面**：Settings 裡可以即時切換語言，不用重開 App
-- **自動更新**：開啟時會檢查最新版本，有更新可以一鍵下載安裝
+- **Drag-and-drop launch**: drop a folder onto the window, or use "Choose Folder" — mole detects the project type and launches it automatically. Supports Node.js (npm / pnpm / yarn / bun), static sites, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, Chrome extensions, native macOS apps, and more
+- **Runs entirely in the background**: no more Terminal windows piling up — the launch command's output is still logged, you just don't have to look at it
+- **Running Projects list**: each service automatically picks up the site's `<title>` or favicon so you can tell projects apart at a glance; Keep Alive (⭐️) and Stop (✕) are visible, clickable icons — no menu to dig through
+- **Auto Close**: automatically close idle services after a configurable amount of time; pinned (Keep Alive) projects are never touched
+- **9-language interface**: English, 繁體中文, 简体中文, 日本語, 한국어, Français, Español, Deutsch, and Português (Brasil) — switch languages instantly in Settings, no restart needed. The language list is always shown in the same fixed order, with each language written in its own native name
+- **Auto-update**: checks for a newer version on launch, with a one-click download and install
 
-## 安裝
+## Screenshots
 
-需要 macOS 12+。
+<p align="center">
+  <img src="docs/screenshots/main.png" width="480" alt="mole main window">
+</p>
 
-### 方式一：直接下載
+## How it works
 
-1. 到 [Releases](https://github.com/ST6AR1/mole/releases/latest) 下載最新的 `mole-x.x.x.dmg`
-2. 打開 DMG，把 App 拖到 `Applications`
-3. 因為沒有付費的 Apple 開發者憑證，第一次打開會跳出「無法驗證開發者」的警告——在 Finder 裡**按住 Control 點兩下 App → 選「打開」**，或到「系統設定 → 隱私權與安全性」允許。之後就不會再跳出來了
+Drop a folder onto mole, and it will:
 
-### 方式二：從原始碼建置
+1. Inspect the folder's contents (`package.json`, `Gemfile`, `go.mod`, `Dockerfile`, …) to figure out the project type
+2. Build the matching launch command and run it in the background (output goes to a log file, no Terminal window pops up)
+3. Poll for a new localhost port coming up
+4. Open the browser automatically once it's detected — or, if there's no web port to detect (a native app, a backend-only service, etc.), mark the launch as done right away
+
+## Installation
+
+Requires macOS 12+.
+
+### Option 1: Download the app
+
+1. Download the latest `mole-x.x.x.dmg` from [Releases](https://github.com/ST6AR1/mole/releases/latest)
+2. Open the DMG and drag the app into `Applications`
+3. Since there's no paid Apple Developer certificate, the first launch will show an "unidentified developer" warning — in Finder, **Control-click the app → Open**, or allow it under **System Settings → Privacy & Security**. This only happens once
+
+### Option 2: Build from source
 
 ```bash
-xcode-select --install   # 如果還沒裝過
+xcode-select --install   # if you haven't already
 git clone https://github.com/ST6AR1/mole.git
 cd mole
 ./build.sh
 ```
 
-會在專案資料夾裡產生 `mole.app`，拖到 `Applications` 就能用。
+This produces `mole.app` in the project folder — drag it into `Applications` to use it.
 
-## 開發
+## Supported Platforms
 
-- `App/main.swift`：整個 App 的原始碼（純 AppKit，沒有用 SwiftUI）
-- `bin/smart-launch.sh`：偵測專案類型、組出啟動指令的 shell script
-- `build.sh`：編譯、打包成 `.app`
-- `make-dmg.sh`：打包成可散布的 `.dmg`
+macOS 12 (Monterey) and later only, on both Apple Silicon and Intel.
 
-發新版本：
+## Privacy
+
+mole runs entirely on your own machine. It doesn't collect or upload any usage data or project content; the only network calls it makes are checking GitHub for a newer version on launch (a read-only call to the Releases API — no device info is sent back), and opening a pre-filled GitHub Issue page when you click "Report an Issue" yourself.
+
+## FAQ
+
+**Q: It's stuck on "Waiting for localhost" — what now?**
+A: If it's a backend-only service, a database, or a native app, there's no web port to find in the first place, and it'll mark itself done automatically after a bit. If it's still running `npm install`, pulling a Docker image, or some other setup step, check the log/Terminal for real progress instead of dropping the folder in again.
+
+**Q: I picked the wrong language and can't read the UI anymore — help?**
+A: In the Settings language dropdown, every language is shown in its own native name (e.g. "Français", "日本語") and always appears in the same fixed order, so you can find the one you can read without needing to decode anything else first.
+
+**Q: What project types are supported?**
+A: Node.js (npm / pnpm / yarn / bun), static sites, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, Chrome extensions, native macOS apps, and more — detection keeps expanding over time.
+
+## Usage Terms
+
+This project's source is public on GitHub for reference and personal use; all rights reserved. Get in touch with the author before using it for anything else.
+
+## Development
+
+- `App/main.swift`: the entire app's source (pure AppKit, no SwiftUI)
+- `App/Localization/`: the 9-language translation files (`Strings.*.swift`) and language-switching logic
+- `bin/smart-launch.sh`: the shell script that detects project types and builds launch commands
+- `build.sh`: compiles and packages the `.app`
+- `make-dmg.sh`: packages a distributable `.dmg`
+
+Cutting a release:
 
 ```bash
 ./make-dmg.sh
-gh release create vX.Y.Z mole-X.Y.Z.dmg --title "vX.Y.Z" --notes "這次改了什麼"
+gh release create vX.Y.Z mole-X.Y.Z.dmg --title "vX.Y.Z" --notes "What changed this time"
 ```
 
----
+## Credits
 
-由 溫 Wen 和 Claude 協同製作 ⌯^⦁𖥦⦁^⌯
+Made by Wen and Claude, together ⌯^⦁𖥦⦁^⌯
