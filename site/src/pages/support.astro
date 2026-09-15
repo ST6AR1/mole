@@ -35,37 +35,40 @@ const release = await getLatestRelease();
       <div class="container container--narrow">
         <h2 class="methods-heading reveal">{dict.support.methodsHeading}</h2>
 
-        <div class="methods-grid">
+        <ul class="methods-list">
           {
             dict.support.methods.map((m, i) =>
               m.qr ? (
-                <div
-                  class:list={["method-card", "method-card--qr", "reveal", { "is-ready": m.ready }]}
-                  style={`transition-delay:${i * 60}ms`}
-                >
-                  <Image src={wechatQr} alt="WeChat Pay reward QR code" width={140} loading="lazy" />
-                  <span class="method-label">{m.label}</span>
-                  {m.qrCaption && <span class="qr-caption muted">{m.qrCaption}</span>}
-                </div>
+                <li class:list={["method-row", "reveal", { "is-ready": m.ready }]} style={`transition-delay:${i * 60}ms`}>
+                  <details class="method-details">
+                    <summary>
+                      <span class="method-label">{m.label}</span>
+                      <span class="method-arrow" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="method-qr">
+                      <Image src={wechatQr} alt="WeChat Pay reward QR code" width={140} loading="lazy" />
+                      {m.qrCaption && <span class="qr-caption muted">{m.qrCaption}</span>}
+                    </div>
+                  </details>
+                </li>
               ) : m.ready && m.href ? (
-                <a
-                  href={m.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="method-card is-ready reveal"
-                  style={`transition-delay:${i * 60}ms`}
-                >
-                  <span class="method-label">{m.label}</span>
-                </a>
+                <li class:list={["method-row", "reveal", { "is-ready": m.ready }]} style={`transition-delay:${i * 60}ms`}>
+                  <a href={m.href} target="_blank" rel="noopener noreferrer">
+                    <span class="method-label">{m.label}</span>
+                    <span class="method-arrow" aria-hidden="true">→</span>
+                  </a>
+                </li>
               ) : (
-                <div class="method-card reveal" style={`transition-delay:${i * 60}ms`}>
-                  <span class="method-label">{m.label}</span>
-                  <span class="preparing-badge">{dict.support.preparing}</span>
-                </div>
+                <li class="method-row reveal" style={`transition-delay:${i * 60}ms`}>
+                  <span class="method-row-static">
+                    <span class="method-label">{m.label}</span>
+                    <span class="preparing-badge">{dict.support.preparing}</span>
+                  </span>
+                </li>
               ),
             )
           }
-        </div>
+        </ul>
 
         <div class="contact-block reveal">
           <p class="muted">{dict.support.contactBody}</p>
@@ -107,53 +110,66 @@ const release = await getLatestRelease();
     margin-bottom: var(--sp-8);
   }
 
-  .methods-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--sp-4);
+  .methods-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
   }
 
-  .method-card {
+  .method-row {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .method-row > a,
+  .method-row > .method-row-static,
+  .method-row .method-details summary {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: var(--sp-1);
-    min-width: 140px;
-    padding: var(--sp-4) var(--sp-5);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    background: var(--surface-warm);
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-2);
     text-decoration: none;
     color: var(--text-muted);
+    cursor: default;
   }
 
-  .method-card.is-ready {
-    background: color-mix(in srgb, var(--butter) 22%, var(--surface));
-    border-color: var(--soil-light);
+  .method-row > a,
+  .method-row .method-details summary {
+    cursor: pointer;
   }
 
-  a.method-card.is-ready {
-    transition:
-      transform var(--dur-fast) var(--ease-out),
-      background-color var(--dur-fast) var(--ease-out);
-  }
-
-  a.method-card.is-ready:hover {
-    background: color-mix(in srgb, var(--butter) 38%, var(--surface));
-    transform: translateY(-2px);
-  }
-
-  .method-card.is-ready .method-label {
+  .method-row.is-ready .method-label {
     color: var(--soil);
     font-weight: 700;
+  }
+
+  .method-row.is-ready {
+    background: color-mix(in srgb, var(--butter) 14%, transparent);
+  }
+
+  .method-row.is-ready > a,
+  .method-row.is-ready .method-details summary {
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .method-row.is-ready > a:hover,
+  .method-row.is-ready .method-details summary:hover {
+    background: color-mix(in srgb, var(--butter) 26%, transparent);
   }
 
   .method-label {
     font-size: 0.9375rem;
     font-weight: 600;
     color: var(--text);
+  }
+
+  .method-arrow {
+    display: inline-block;
+    color: var(--soil-light);
+    font-size: 1.125rem;
+    line-height: 1;
+    transition: transform var(--dur-fast) var(--ease-out);
   }
 
   .preparing-badge {
@@ -164,20 +180,33 @@ const release = await getLatestRelease();
     text-transform: uppercase;
   }
 
-  .method-card--qr {
-    padding-block: var(--sp-3);
+  .method-details summary {
+    list-style: none;
+  }
+  .method-details summary::-webkit-details-marker {
+    display: none;
+  }
+  .method-details[open] summary .method-arrow {
+    transform: rotate(45deg);
   }
 
-  .method-card--qr :global(img) {
-    width: 100px;
+  .method-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2) var(--sp-5);
+  }
+
+  .method-qr :global(img) {
+    width: 140px;
     height: auto;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    margin-bottom: var(--sp-2);
   }
 
   .qr-caption {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .contact-block {
@@ -221,12 +250,5 @@ const release = await getLatestRelease();
 
   .back-link:hover {
     text-decoration: underline;
-  }
-
-  @media (max-width: 480px) {
-    .method-card {
-      min-width: 0;
-      flex: 1 1 calc(50% - var(--sp-4));
-    }
   }
 </style>
