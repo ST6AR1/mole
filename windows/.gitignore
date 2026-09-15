@@ -1,0 +1,4 @@
+# Only ignore this package's own dependencies — not the deliberately-named
+# test/fixtures/node-pnpm-installed/node_modules/ fixture, which needs to be
+# a real (tracked) directory to exercise the "already installed" test case.
+/node_modules/

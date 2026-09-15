@@ -1,0 +1,1 @@
+{ "name": "node-bun-fixture", "scripts": { "dev": "bun --hot src/index.ts" } }

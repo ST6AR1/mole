@@ -1,0 +1,1 @@
+{ "name": "desktop-app", "scripts": { "dev": "tauri dev" } }
