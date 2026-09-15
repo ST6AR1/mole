@@ -1,0 +1,109 @@
+---
+// Centralized mascot art. Every Mole illustration used anywhere on the site
+// goes through this single map — swap or upgrade a pose here and every
+// section that references it updates. Never import a mascot PNG directly
+// in a page or another component.
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import wordmarkLogo from "../assets/mole/wordmark-logo.png";
+import folder from "../assets/mole/folder.png";
+import folderMoleFace from "../assets/mole/folder-mole-face.png";
+import carryFolder from "../assets/mole/carry-folder.png";
+import peekSmall from "../assets/mole/peek-small.png";
+import aboutRelax from "../assets/mole/about-relax.png";
+import wrench from "../assets/mole/wrench.png";
+import mound from "../assets/mole/mound.png";
+import pawprints from "../assets/mole/pawprints.png";
+import holdFolderIdle from "../assets/mole/hold-folder-idle.png";
+import laptopPapers from "../assets/mole/laptop-papers.png";
+import confused from "../assets/mole/confused-placeholder.png";
+import dig0 from "../assets/mole/dig-anim-0.png";
+import dig1 from "../assets/mole/dig-anim-1.png";
+import dig2 from "../assets/mole/dig-anim-2.png";
+import dig3 from "../assets/mole/dig-anim-3.png";
+import dig4 from "../assets/mole/dig-anim-4.png";
+import dig5 from "../assets/mole/dig-anim-5.png";
+import digGif from "../assets/mole/mole-dig.gif";
+
+// Static poses go through astro:assets' <Image> for optimization (webp,
+// responsive widths, etc). Animated GIFs must NOT go through that pipeline
+// — Sharp only keeps the first frame of a GIF when it re-encodes one — so
+// they're kept in a separate map and rendered as a plain <img src=.src>,
+// which serves the original file untouched.
+const poses = {
+  "wordmark-logo": wordmarkLogo,
+  folder: folder,
+  "folder-mole-face": folderMoleFace,
+  "carry-folder": carryFolder,
+  "peek-small": peekSmall,
+  "about-relax": aboutRelax,
+  wrench: wrench,
+  mound: mound,
+  pawprints: pawprints,
+  "hold-folder-idle": holdFolderIdle,
+  "laptop-papers": laptopPapers,
+  confused: confused,
+  "dig-0": dig0,
+  "dig-1": dig1,
+  "dig-2": dig2,
+  "dig-3": dig3,
+  "dig-4": dig4,
+  "dig-5": dig5,
+} as const;
+
+const animatedPoses = {
+  "dig-loop": digGif,
+} as const;
+
+export type MolePose = keyof typeof poses | keyof typeof animatedPoses;
+
+interface Props {
+  pose: MolePose;
+  width?: number;
+  alt?: string;
+  class?: string;
+  loading?: "eager" | "lazy";
+  decorative?: boolean;
+}
+
+const {
+  pose,
+  width,
+  alt = "",
+  class: className,
+  loading = "lazy",
+  decorative = false,
+} = Astro.props;
+
+const animatedSource = (animatedPoses as Record<string, ImageMetadata>)[pose];
+const staticSource = (poses as Record<string, ImageMetadata>)[pose];
+---
+
+{
+  animatedSource ? (
+    <img
+      src={animatedSource.src}
+      width={width}
+      height={
+        width
+          ? Math.round((width * animatedSource.height) / animatedSource.width)
+          : animatedSource.height
+      }
+      alt={decorative ? "" : alt}
+      role={decorative ? "presentation" : undefined}
+      loading={loading}
+      decoding="async"
+      class={className}
+    />
+  ) : (
+    <Image
+      src={staticSource}
+      alt={decorative ? "" : alt}
+      role={decorative ? "presentation" : undefined}
+      width={width}
+      loading={loading}
+      decoding="async"
+      class={className}
+    />
+  )
+}

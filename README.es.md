@@ -6,6 +6,8 @@
 
 <p align="center">Olvídate de los comandos, ponte a trabajar.<br>Skip the commands, get to work.</p>
 
+<p align="center"><a href="https://st6ar1.github.io/mole/">st6ar1.github.io/mole</a></p>
+
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>
@@ -92,9 +94,9 @@ R: En el menú desplegable de idiomas de Ajustes, cada idioma se muestra en su p
 **P: ¿Qué tipos de proyecto son compatibles?**
 R: Node.js (npm / pnpm / yarn / bun), sitios estáticos, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, extensiones de Chrome, apps nativas de macOS, y más — la detección sigue ampliándose con el tiempo.
 
-## Términos de uso
+## Licencia
 
-El código fuente de este proyecto es público en GitHub solo para consulta y uso personal; todos los derechos reservados. Ponte en contacto con el autor antes de usarlo para cualquier otro fin.
+Licencia MIT — consulta [LICENSE](LICENSE). Gratuito y de código abierto: úsalo, haz un fork, distribuye tu propia compilación.
 
 ## Desarrollo
 

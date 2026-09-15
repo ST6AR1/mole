@@ -1,0 +1,46 @@
+---
+// A short brand-moment band right under the header: just the wordmark,
+// large, on its own. The header keeps a small functional mark for
+// navigation; this is the one place the logo gets to be the whole show.
+import MoleArt from "./MoleArt.astro";
+---
+
+<div class="logo-band reveal">
+  <MoleArt
+    pose="wordmark-logo"
+    width={520}
+    alt="Mole"
+    loading="eager"
+    class="logo-band-mark"
+  />
+</div>
+
+<style>
+  .logo-band {
+    display: flex;
+    justify-content: center;
+    padding-block: clamp(2rem, 1.5rem + 2.5vw, 3.5rem) 0;
+  }
+
+  .logo-band :global(.logo-band-mark) {
+    width: clamp(240px, 32vw, 420px);
+    height: auto;
+    animation: logo-bob 5s ease-in-out infinite;
+  }
+
+  @keyframes logo-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .logo-band :global(.logo-band-mark) {
+      animation: none;
+    }
+  }
+</style>

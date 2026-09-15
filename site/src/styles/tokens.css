@@ -1,0 +1,84 @@
+/*
+  Design tokens — Mole is a warm, hand-drawn-but-clean indie brand.
+  Light-only palette on purpose: an ivory/soil brand doesn't need a forced
+  dark mode, and the app itself already offers Light/Dark/System separately.
+*/
+:root {
+  /* --- color: surface & text --- */
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface-warm: #fbf9f5;
+  --surface-sunken: #efece5;
+  --border: #e5e1d8;
+  --border-strong: #d8d2c4;
+
+  --text: #1e1d1b;
+  --text-muted: #7a756d;
+  --text-faint: #a29c8f;
+
+  /* --- color: brand --- */
+  --soil: #4a3228;
+  --soil-hover: #3a2620;
+  --soil-light: #a8795a;
+  --folder-blue: #7fb0e8;
+  --folder-blue-deep: #4378b8;
+  --nose-pink: #f2b5a3;
+  --butter: #f3d77a;
+  --sage: #b9c9a9;
+  --danger: #c1443b;
+  --danger-bg: #fbeceb;
+
+  /* --- typography --- */
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-hand: "Caveat", cursive;
+
+  --fs-h1: clamp(2.125rem, 1.6rem + 2.4vw, 3.25rem);
+  --fs-h2: clamp(1.75rem, 1.5rem + 1.1vw, 2.25rem);
+  --fs-h3: clamp(1.25rem, 1.15rem + 0.4vw, 1.375rem);
+  --fs-body: 1.0625rem;
+  --fs-body-sm: 0.9375rem;
+  --fs-small: 0.875rem;
+  --fs-doodle: 1.375rem;
+
+  --lh-tight: 1.12;
+  --lh-heading: 1.3;
+  --lh-body: 1.65;
+
+  --tracking-tight: -0.02em;
+
+  /* --- spacing scale --- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+  --sp-24: 6rem;
+  --sp-32: 8rem;
+  --sp-40: 10rem;
+
+  --section-gap: clamp(4.5rem, 4rem + 3vw, 10rem);
+  --content-width: 1080px;
+  --content-width-wide: 1200px;
+  --content-pad: clamp(1.25rem, 1rem + 2vw, 2rem);
+
+  /* --- shape & elevation --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-window:
+    0 1px 2px rgba(30, 29, 27, 0.06),
+    0 20px 48px -16px rgba(30, 29, 27, 0.16);
+  --shadow-soft: 0 8px 24px -12px rgba(30, 29, 27, 0.14);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-med: 320ms;
+  --dur-slow: 640ms;
+}

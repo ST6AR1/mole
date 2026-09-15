@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { getDictionary, defaultLocale } from "../i18n";
+import { getLatestRelease } from "../data/release";
+import { REPO_URL } from "../utils/url";
+
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
+const release = await getLatestRelease();
+---
+
+<BaseLayout
+  title={dict.privacyPage.metaTitle}
+  description={dict.privacyPage.metaDescription}
+  routePath="/privacy"
+  locale={locale}
+>
+  <Header dict={dict} locale={locale} routePath="/privacy" />
+  <main id="main">
+    <section class="section">
+      <div class="container container--narrow prose">
+        <h1>{dict.privacyPage.heading}</h1>
+        <p class="muted">{dict.privacyPage.intro}</p>
+
+        <h2>{dict.privacyPage.networkHeading}</h2>
+        <ul>
+          <li>{dict.privacyPage.networkItem1}</li>
+          <li>{dict.privacyPage.networkItem2}</li>
+        </ul>
+
+        <h2>{dict.privacyPage.websiteHeading}</h2>
+        <p>{dict.privacyPage.websiteBody}</p>
+
+        <p class="muted">
+          {dict.privacyPage.questions}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+  <Footer dict={dict} release={release} locale={locale} />
+</BaseLayout>
+
+<style>
+  .container--narrow {
+    max-width: 680px;
+  }
+
+  .prose h1 {
+    margin-bottom: var(--sp-6);
+  }
+
+  .prose h2 {
+    margin-top: var(--sp-12);
+    margin-bottom: var(--sp-3);
+    font-size: 1.25rem;
+  }
+
+  .prose p,
+  .prose li {
+    color: var(--text-muted);
+    line-height: var(--lh-body);
+  }
+
+  .prose ul {
+    padding-left: 1.25em;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .prose a {
+    color: var(--soil);
+  }
+</style>

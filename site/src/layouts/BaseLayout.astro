@@ -1,0 +1,88 @@
+---
+import "../styles/global.css";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { withBase } from "../utils/url";
+import { readyLocales, defaultLocale } from "../i18n/config";
+
+interface Props {
+  title: string;
+  description: string;
+  routePath?: string; // locale-agnostic route, e.g. "/support", "/" — used to build canonical + hreflang alternates
+  locale?: string; // Astro.currentLocale from the calling page
+}
+
+const {
+  title,
+  description,
+  routePath = "/",
+  locale = defaultLocale,
+} = Astro.props;
+
+const canonicalURL = new URL(getRelativeLocaleUrl(locale, routePath), Astro.site);
+const ogImageURL = new URL(withBase("/og-image.png"), Astro.site);
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    {
+      readyLocales.map((l) => (
+        <link
+          rel="alternate"
+          hreflang={l.code}
+          href={new URL(getRelativeLocaleUrl(l.code, routePath), Astro.site)}
+        />
+      ))
+    }
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href={new URL(getRelativeLocaleUrl(defaultLocale, routePath), Astro.site)}
+    />
+
+    <!-- Favicons -->
+    <link rel="icon" href={withBase("/favicon.ico")} sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href={withBase("/favicon-32.png")} />
+    <link rel="icon" type="image/png" sizes="16x16" href={withBase("/favicon-16.png")} />
+    <link rel="apple-touch-icon" href={withBase("/apple-touch-icon.png")} />
+    <link rel="manifest" href={withBase("/site.webmanifest")} />
+    <meta name="theme-color" content="#f7f5f0" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mole" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={locale.replace("-", "_")} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+
+    <!-- Fonts: Inter for UI, Caveat only for small hand-written doodle copy -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <slot />
+    <script>
+      import "../scripts/interactions";
+    </script>
+  </body>
+</html>

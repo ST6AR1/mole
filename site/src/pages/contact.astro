@@ -1,0 +1,82 @@
+---
+// General-purpose contact page — separate from Support's narrow "want a
+// different payment method?" line. Linked from the footer on every page.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import MoleArt from "../components/MoleArt.astro";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { getDictionary, defaultLocale } from "../i18n";
+import { getLatestRelease } from "../data/release";
+
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
+const release = await getLatestRelease();
+---
+
+<BaseLayout
+  title={`${dict.contact.metaTitle} — Mole`}
+  description={dict.contact.metaDescription}
+  routePath="/contact"
+  locale={locale}
+>
+  <Header dict={dict} locale={locale} routePath="/contact" />
+  <main id="main">
+    <section class="section">
+      <div class="container container--narrow contact-head reveal">
+        <MoleArt pose="hold-folder-idle" width={90} alt="Mole waving hello" />
+        <h1>{dict.contact.heading}</h1>
+        <p class="muted">{dict.contact.body}</p>
+        <a class="contact-email" href={`mailto:${dict.contact.email}`}>
+          {dict.contact.email}
+        </a>
+        <a class="back-link" href={getRelativeLocaleUrl(locale, "/")}>
+          ← {dict.contact.backHome}
+        </a>
+      </div>
+    </section>
+  </main>
+  <Footer dict={dict} release={release} locale={locale} />
+</BaseLayout>
+
+<style>
+  .contact-head {
+    text-align: center;
+    max-width: 480px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+
+  .contact-head h1 {
+    margin-top: var(--sp-2);
+  }
+
+  .contact-email {
+    margin-top: var(--sp-4);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--soil);
+    text-decoration: none;
+    border-bottom: 1px solid var(--soil-light);
+  }
+
+  .contact-email:hover {
+    color: var(--soil-hover);
+  }
+
+  .back-link {
+    margin-top: var(--sp-8);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
+</style>

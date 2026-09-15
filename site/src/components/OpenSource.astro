@@ -1,0 +1,149 @@
+---
+import type { Dictionary } from "../i18n/types";
+import MoleArt from "./MoleArt.astro";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { REPO_URL } from "../utils/url";
+import { defaultLocale } from "../i18n/config";
+
+interface Props {
+  dict: Dictionary;
+  stars: number | null;
+  locale?: string;
+}
+const { dict, stars, locale = defaultLocale } = Astro.props;
+---
+
+<section class="opensource section">
+  <div class="container opensource-grid">
+    <MoleArt
+      pose="wrench"
+      width={96}
+      alt="Mole holding a wrench"
+      class="opensource-mole reveal"
+    />
+
+    <div class="opensource-copy reveal">
+      <span class="eyebrow">{dict.openSource.eyebrow}</span>
+      <h2>{dict.openSource.heading}</h2>
+
+      <ul class="opensource-points">
+        {dict.openSource.points.map((point) => <li>{point}</li>)}
+      </ul>
+
+      <div class="opensource-ctas">
+        <a class="btn-github" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          {dict.openSource.ctaGithub}
+          {stars !== null && <span class="star-count">{stars}</span>}
+        </a>
+        <a class="support-link" href={getRelativeLocaleUrl(locale, "/support")}>
+          {dict.openSource.support}
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .opensource-grid {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+    max-width: 720px;
+    margin-inline: auto;
+  }
+
+  /* :global() — MoleArt's <img> lives outside this file's style scope. */
+  .opensource-grid :global(.opensource-mole) {
+    width: 96px;
+    height: auto;
+  }
+
+  .opensource-copy h2 {
+    margin-top: var(--sp-2);
+  }
+
+  .opensource-points {
+    list-style: none;
+    margin: var(--sp-6) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .opensource-points li {
+    padding-left: 22px;
+    position: relative;
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+  }
+
+  .opensource-points li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sage);
+  }
+
+  .opensource-ctas {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    margin-top: var(--sp-8);
+    flex-wrap: wrap;
+  }
+
+  .btn-github {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.65em 1.25em;
+    border-radius: var(--radius-pill);
+    background: var(--text);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .btn-github:hover {
+    transform: translateY(1px);
+  }
+
+  .star-count {
+    background: rgba(255, 255, 255, 0.18);
+    padding: 0.1em 0.55em;
+    border-radius: var(--radius-pill);
+    font-size: 0.8125rem;
+  }
+
+  .support-link {
+    font-size: 0.875rem;
+    color: var(--text-faint);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .support-link:hover {
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .opensource-grid {
+      grid-template-columns: 1fr;
+      text-align: left;
+    }
+    .opensource-grid :global(.opensource-mole) {
+      display: none;
+    }
+  }
+</style>

@@ -6,6 +6,8 @@
 
 <p align="center">명령어는 필요 없어요, 바로 작업을 시작하세요.<br>Skip the commands, get to work.</p>
 
+<p align="center"><a href="https://st6ar1.github.io/mole/">st6ar1.github.io/mole</a></p>
+
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>
@@ -92,9 +94,9 @@ A: Settings의 언어 드롭다운에서는 각 언어가 자신의 고유 표�
 **Q: 어떤 프로젝트 유형을 지원하나요?**
 A: Node.js(npm / pnpm / yarn / bun), 정적 사이트, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, Chrome 확장 프로그램, 네이티브 macOS 앱 등이며, 감지 범위는 계속 확장되고 있습니다.
 
-## 이용 약관
+## 라이선스
 
-이 프로젝트의 소스 코드는 참고 및 개인적인 용도로 GitHub에 공개되어 있으며, 모든 권리를 보유합니다(All rights reserved). 다른 용도로 사용하고 싶으시다면 먼저 작성자에게 연락해주세요.
+MIT 라이선스 — 자세한 내용은 [LICENSE](LICENSE)를 참고하세요. 무료 오픈소스이며, 자유롭게 사용, 포크, 자체 빌드 배포가 가능합니다.
 
 ## 개발
 

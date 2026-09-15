@@ -1,0 +1,79 @@
+---
+import type { Dictionary } from "../i18n/types";
+import Screenshot, { type Scene } from "./Screenshot.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+
+const scenes: Scene[] = ["default", "detecting", "settings", "running"];
+const altText = [
+  "Mole's empty drop zone, ready to accept a project folder",
+  "Mole detecting a project's type and launch command",
+  "Mole's Settings screen with Auto Close and browser preferences",
+  "Mole's Running Projects list with several localhost services",
+];
+---
+
+<section class="features section" id="features">
+  <div class="container">
+    <div class="features-head reveal">
+      <span class="eyebrow">{dict.features.eyebrow}</span>
+      <h2>{dict.features.heading}</h2>
+    </div>
+
+    <div class="features-grid">
+      {
+        dict.features.items.map((item, i) => (
+          <article class="feature-card reveal">
+            <Screenshot scene={scenes[i]} alt={altText[i]} class="feature-shot" />
+            <h3>{item.title}</h3>
+            <p class="muted">{item.body}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .features-head {
+    text-align: center;
+    max-width: 640px;
+    margin-inline: auto;
+    margin-bottom: var(--sp-16);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-16) var(--sp-12);
+  }
+
+  .feature-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+  }
+
+  .feature-card :global(.feature-shot) {
+    max-width: 100%;
+    align-self: stretch;
+  }
+
+  .feature-card h3 {
+    margin-top: var(--sp-2);
+  }
+
+  .feature-card p {
+    max-width: 48ch;
+  }
+
+  @media (max-width: 800px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+      gap: var(--sp-16);
+    }
+  }
+</style>

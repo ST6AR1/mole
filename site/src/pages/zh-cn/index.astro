@@ -1,0 +1,11 @@
+---
+// Thin per-locale route: Astro's file-based i18n routing needs an actual
+// file under the locale's path segment. Re-rendering the shared page here
+// means the two locales can never drift into two different page structures
+// — only src/i18n/zh-CN.ts content differs. Astro.currentLocale is resolved
+// from the matched route ("zh-cn" -> "zh-CN") before this even runs, so the
+// imported page picks up the right dictionary automatically.
+import Page from "../index.astro";
+---
+
+<Page />

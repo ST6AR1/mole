@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://st6ar1.github.io/mole/sitemap-index.xml

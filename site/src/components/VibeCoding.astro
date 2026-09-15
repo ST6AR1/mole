@@ -1,0 +1,92 @@
+---
+import type { Dictionary } from "../i18n/types";
+import MoleArt from "./MoleArt.astro";
+
+interface Props {
+  dict: Dictionary;
+}
+const { dict } = Astro.props;
+---
+
+<section class="vibe section">
+  <div class="container vibe-grid">
+    <div class="vibe-copy reveal">
+      <span class="eyebrow">{dict.vibeCoding.eyebrow}</span>
+      <h2>{dict.vibeCoding.heading}</h2>
+      <p class="muted">{dict.vibeCoding.body}</p>
+
+      <blockquote class="vibe-quote">
+        <p>“{dict.vibeCoding.quote}”</p>
+        <cite>{dict.vibeCoding.quoteAttribution}</cite>
+      </blockquote>
+    </div>
+
+    <MoleArt
+      pose="about-relax"
+      width={280}
+      alt="Mole relaxing with a laptop, a drink, and fries"
+      class="vibe-mole reveal"
+    />
+  </div>
+</section>
+
+<style>
+  .vibe-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: center;
+    gap: clamp(2rem, 2rem + 3vw, 4rem);
+  }
+
+  .vibe-copy h2 {
+    margin-block: var(--sp-4) var(--sp-4);
+    max-width: 18ch;
+  }
+
+  .vibe-copy > p {
+    max-width: 52ch;
+    font-size: 1.0625rem;
+  }
+
+  .vibe-quote {
+    margin: var(--sp-8) 0 0;
+    padding-inline-start: var(--sp-6);
+    border-left: 3px solid var(--folder-blue);
+  }
+
+  .vibe-quote p {
+    font-size: 1.0625rem;
+    color: var(--text);
+    line-height: var(--lh-body);
+  }
+
+  .vibe-quote cite {
+    display: block;
+    margin-top: var(--sp-3);
+    font-style: normal;
+    font-size: var(--fs-small);
+    color: var(--text-faint);
+  }
+
+  /* :global() — MoleArt renders in its own file, so it never carries this
+     component's scope attribute; an unscoped rule is required to reach it. */
+  .vibe-grid :global(.vibe-mole) {
+    justify-self: center;
+    width: clamp(200px, 22vw, 280px);
+    height: auto;
+  }
+
+  @media (max-width: 800px) {
+    .vibe-grid {
+      grid-template-columns: 1fr;
+      text-align: left;
+    }
+    .vibe-grid :global(.vibe-mole) {
+      order: -1;
+      width: 180px;
+    }
+    .vibe-copy h2 {
+      max-width: none;
+    }
+  }
+</style>

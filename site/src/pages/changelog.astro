@@ -1,0 +1,135 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { getDictionary, defaultLocale } from "../i18n";
+import { getAllReleases, getLatestRelease } from "../data/release";
+
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
+const [releases, release] = await Promise.all([
+  getAllReleases(),
+  getLatestRelease(),
+]);
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+---
+
+<BaseLayout
+  title={dict.changelog.metaTitle}
+  description={dict.changelog.metaDescription}
+  routePath="/changelog"
+  locale={locale}
+>
+  <Header dict={dict} locale={locale} routePath="/changelog" />
+  <main id="main">
+    <section class="section">
+      <div class="container container--narrow">
+        <h1>{dict.changelog.heading}</h1>
+        <p class="muted intro">
+          {dict.changelog.intro}
+          <a href="https://github.com/ST6AR1/mole/releases" target="_blank" rel="noopener noreferrer"
+            >{dict.changelog.generatedFrom}</a
+          >.
+        </p>
+
+        <ol class="release-list">
+          {
+            releases.map((r) => (
+              <li class="release-item">
+                <div class="release-head">
+                  <h2>{r.name}</h2>
+                  <time datetime={r.publishedAt}>{formatDate(r.publishedAt)}</time>
+                </div>
+                <p class="release-body">{r.body}</p>
+                <a class="release-link" href={r.htmlUrl} target="_blank" rel="noopener noreferrer">
+                  {dict.changelog.viewOnGithub}
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+  </main>
+  <Footer dict={dict} release={release} locale={locale} />
+</BaseLayout>
+
+<style>
+  .container--narrow {
+    max-width: 720px;
+  }
+
+  h1 {
+    margin-bottom: var(--sp-2);
+  }
+
+  .intro {
+    margin-bottom: var(--sp-16);
+  }
+
+  .intro a {
+    color: var(--soil);
+  }
+
+  .release-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-12);
+  }
+
+  .release-item {
+    padding-bottom: var(--sp-12);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .release-item:last-child {
+    border-bottom: none;
+  }
+
+  .release-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    flex-wrap: wrap;
+  }
+
+  .release-head h2 {
+    font-size: 1.25rem;
+  }
+
+  .release-head time {
+    font-size: var(--fs-small);
+    color: var(--text-faint);
+  }
+
+  .release-body {
+    margin-top: var(--sp-3);
+    color: var(--text-muted);
+    white-space: pre-line;
+    line-height: var(--lh-body);
+  }
+
+  .release-link {
+    display: inline-block;
+    margin-top: var(--sp-3);
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--soil);
+    text-decoration: none;
+  }
+
+  .release-link:hover {
+    text-decoration: underline;
+  }
+</style>

@@ -6,6 +6,8 @@
 
 <p align="center">别管指令，直接开工。<br>Skip the commands, get to work.</p>
 
+<p align="center"><a href="https://st6ar1.github.io/mole/">st6ar1.github.io/mole</a></p>
+
 <p align="center">
   <img src="docs/screenshots/app-icon.png" width="120" alt="mole app icon">
 </p>
@@ -92,9 +94,9 @@ A：设置的语言下拉菜单里，每个语言都用自己的原生名称显�
 **Q：支持哪些项目类型？**
 A：Node.js（npm / pnpm / yarn / bun）、静态网页、Python、Ruby / Rails、Go、Rust、Docker Compose、Deno、PHP、Flutter、Java / Kotlin、.NET、Chrome 扩展、原生 macOS App 等等，检测逻辑还会持续扩充。
 
-## 使用条款
+## 许可协议
 
-本项目源码公开于 GitHub，仅供参考与个人使用，版权所有。如需另作他用请先与作者联系。
+MIT 许可协议，详见 [LICENSE](LICENSE)。免费且开源，欢迎使用、fork、打包成自己的版本。
 
 ## 开发
 
