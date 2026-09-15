@@ -150,6 +150,8 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
     position: relative;
     display: inline-flex;
     align-items: center;
+    flex: 0 0 auto;
+    min-width: 0;
   }
 
   .lang-select {
@@ -186,6 +188,7 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
   .header-cta {
     display: inline-flex;
     align-items: center;
+    flex: 0 0 auto;
     padding: 0.5em 1.25em;
     border-radius: var(--radius-pill);
     background: var(--soil);
@@ -193,6 +196,7 @@ const homeHref = getRelativeLocaleUrl(locale, "/");
     font-weight: 600;
     font-size: 0.875rem;
     text-decoration: none;
+    white-space: nowrap;
     transition:
       transform var(--dur-fast) var(--ease-out),
       background-color var(--dur-fast) var(--ease-out);
