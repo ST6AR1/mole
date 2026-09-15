@@ -9,7 +9,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo ">> Compiling Swift source..."
-swiftc -O -o "$APP/Contents/MacOS/mole" App/main.swift
+swiftc -O -o "$APP/Contents/MacOS/mole" App/main.swift App/Localization/*.swift
 chmod +x "$APP/Contents/MacOS/mole"
 
 echo ">> Copying Info.plist..."

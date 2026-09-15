@@ -9,14 +9,16 @@ struct UpdateInfo: Equatable {
     let dmgURL: URL?
 }
 
-let currentVersion = "1.0.1"
+let currentVersion = "1.0.2"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/mole/releases/latest"
 
 // 用「打開瀏覽器到預填好的 GitHub 新 issue 頁面」取代真正的自動回報後端——
 // 不用自己架伺服器收集資料，使用者按一下就能把問題送到 repo 的 Issues，我這邊直接看得到。
+// Issue 本身的標題/內文維持英文（外部 GitHub 內容預設英文），只有「目前語言」這欄
+// 用使用者自己語言的原生名稱標出來，方便我知道回報者是用哪個語言版本。
 func reportIssueURL() -> URL {
     let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
-    let lang = AppLanguage.current == .zh ? "繁體中文" : "English"
+    let lang = AppLanguage.current.nativeName
     let title = "Bug report - mole v\(currentVersion)"
     let body = """
     **mole version**: \(currentVersion)
@@ -296,20 +298,20 @@ func friendlyUptime(_ totalSeconds: Int) -> String {
     let hours = (totalSeconds % 86400) / 3600
     let minutes = (totalSeconds % 3600) / 60
     let seconds = totalSeconds % 60
-    if days > 0 { return "已運行 \(days) 天 \(hours) 小時" }
-    if hours > 0 { return "已運行 \(hours) 小時 \(minutes) 分" }
-    if minutes > 0 { return "已運行 \(minutes) 分鐘" }
-    return "已運行 \(seconds) 秒"
+    if days > 0 { return tf("uptime.days", days, hours) }
+    if hours > 0 { return tf("uptime.hours", hours, minutes) }
+    if minutes > 0 { return tf("uptime.minutes", minutes) }
+    return tf("uptime.seconds", seconds)
 }
 
 func shortUptime(_ totalSeconds: Int) -> String {
     let days = totalSeconds / 86400
     let hours = (totalSeconds % 86400) / 3600
     let minutes = (totalSeconds % 3600) / 60
-    if days > 0 { return "\(days) d" }
-    if hours > 0 { return "\(hours) hr" }
-    if minutes > 0 { return "\(minutes) min" }
-    return "< 1 min"
+    if days > 0 { return tf("uptime.short.days", days) }
+    if hours > 0 { return tf("uptime.short.hours", hours) }
+    if minutes > 0 { return tf("uptime.short.minutes", minutes) }
+    return t("uptime.short.lessThanMinute")
 }
 
 // 鼴鼠插畫是手動放進 app bundle Resources 的 PNG，沒有走 asset catalog，
@@ -325,93 +327,9 @@ func moleImage(_ name: String) -> NSImage? {
 
 // MARK: - Localization
 //
-// 簡單的雙語字典，不是完整的 .strings/.lproj 系統——只覆蓋使用者最常看到的
-// 主要文案（拖曳區、啟動中、Auto Close、Running Projects、警示訊息等），
-// 在 Settings 裡切換語言時即時生效，不需要重開 App。
-enum AppLanguage: String {
-    case zh, en
-
-    static var current: AppLanguage {
-        get { AppLanguage(rawValue: UserDefaults.standard.string(forKey: "smartlaunch.language") ?? "zh") ?? .zh }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "smartlaunch.language") }
-    }
-}
-
-private let localizedStrings: [String: [AppLanguage: String]] = [
-    "tagline": [.zh: "別管指令，直接開工", .en: "Skip the commands, get to work."],
-    "drop.title": [.zh: "把專案資料夾拖到這裡", .en: "Drop your project folder here"],
-    "drop.subtitle": [.zh: "不用記指令，我來判斷", .en: "No commands to remember, I'll figure it out"],
-    "drop.button": [.zh: "選擇資料夾", .en: "Choose Folder"],
-    "drop.doodle": [.zh: "drag it!", .en: "drag it!"],
-    "drop.hover.title": [.zh: "drop it here", .en: "drop it here"],
-    "drop.hover.subtitle": [.zh: "我接住了！", .en: "Got it!"],
-    "drop.hover.doodle": [.zh: "gimme!", .en: "gimme!"],
-    "drop.lastLaunched": [.zh: "上次啟動：", .en: "Last launched: "],
-    "launch.title": [.zh: "正在分析專案", .en: "Analyzing project"],
-    "launch.subtitle": [.zh: "看看這個資料夾裡藏了什麼", .en: "Let's see what's in this folder"],
-    "launch.doodle": [.zh: "digging⋯", .en: "digging⋯"],
-    "launch.cancel": [.zh: "先不等了", .en: "Never mind"],
-    "empty.title": [.zh: "目前沒有專案在跑", .en: "Nothing running right now"],
-    "autoclose.title": [.zh: "自動關閉", .en: "Auto Close"],
-    "autoclose.subtitle": [.zh: "閒置專案將自動關閉", .en: "Idle projects will close automatically"],
-    "running.title": [.zh: "執行中的專案", .en: "Running Projects"],
-    "running.killAll": [.zh: "全部關閉", .en: "Stop All"],
-    "settings.title": [.zh: "設定", .en: "Settings"],
-    "settings.general": [.zh: "一般", .en: "General"],
-    "settings.about": [.zh: "關於", .en: "About"],
-    "settings.story": [.zh: "故事", .en: "Story"],
-    "story.heading": [.zh: "為什麼做這個 App？", .en: "Why I made this app"],
-    "story.p1": [.zh: "我不是專業開發者。Vibe coding 做久了，專案越來越多，啟動指令記不住，連 localhost 開了哪些也常常搞不清楚。", .en: "I'm not a professional developer. After a lot of vibe coding, I ended up with more and more projects, couldn't remember the start commands, and kept losing track of which localhost ports were even running."],
-    "story.p2": [.zh: "我又不想每次只是為了重新把專案跑起來，就再問一次 AI。", .en: "And I didn't want to ask an AI all over again just to get a project running."],
-    "story.p3": [.zh: "所以做了 mole。把資料夾丟進來，剩下交給它。", .en: "So I made mole. Drop in the folder, and it takes care of the rest."],
-    "story.closing": [.zh: "別管指令，直接開工。", .en: "Skip the commands, get to work."],
-    "settings.language": [.zh: "語言", .en: "Language"],
-    "settings.github": [.zh: "在 GitHub 上查看", .en: "View on GitHub"],
-    "settings.license": [.zh: "MIT 授權", .en: "MIT License"],
-    "alert.stop.confirm": [.zh: "關閉", .en: "Stop"],
-    "alert.cancel": [.zh: "取消", .en: "Cancel"],
-    "alert.stopTitle": [.zh: "關閉 localhost:%@？", .en: "Stop localhost:%@?"],
-    "alert.killAllTitle": [.zh: "全部關閉？", .en: "Stop all?"],
-    "alert.killAllMessage": [.zh: "會關閉 %d 個開發伺服器（localhost:%@)。", .en: "This will stop %d dev server(s) (localhost:%@)."],
-    "alert.killAllSkipped": [.zh: "\n有標記「常駐」的 %d 個服務不會被關閉。", .en: "\n%d pinned service(s) marked Keep Alive won't be stopped."],
-    "pin.tooltip": [.zh: "常駐：不會被自動過期關閉", .en: "Keep Alive: won't be closed automatically"],
-    "project.pinned": [.zh: "常駐中", .en: "pinned"],
-    "expire.30m": [.zh: "30 分鐘", .en: "30 min"],
-    "expire.1h": [.zh: "1 小時", .en: "1 hour"],
-    "expire.2h": [.zh: "2 小時（預設）", .en: "2 hours (default)"],
-    "expire.4h": [.zh: "4 小時", .en: "4 hours"],
-    "expire.never": [.zh: "停用自動過期", .en: "Never"],
-    "launch.detecting": [.zh: "正在偵測專案類型…", .en: "Detecting project type…"],
-    "launch.waitingServer": [.zh: "已在背景啟動，等待服務就緒…", .en: "Launched in the background, waiting for it to come up…"],
-    "launch.opened": [.zh: "（已開啟）", .en: " (opened)"],
-    "launch.noPortNotice": [.zh: "已啟動，但沒有偵測到新的網頁 port（可能是原生 App、純後端／資料庫服務，本來就不會有網頁；若還在等 Docker，可以到 Terminal 視窗確認進度，不需要重新拖曳）", .en: "Launched, but no new web port was detected (it may be a native app or a backend/database service with no web page — that's expected. If it's still waiting on Docker, check the log instead of dragging it in again)"],
-    "launch.waitingElapsed": [.zh: "等待服務就緒…（已等待 %d 秒，隨時可以到 Terminal 查看）", .en: "Waiting for it to come up… (%d sec so far, check the log anytime)"],
-    "launch.elapsedSuffix": [.zh: "（已等待 %d 秒）", .en: " (%d sec so far)"],
-    "autoclose.notice": [.zh: "已自動關閉 localhost:%@（運行超過 %d 分鐘）", .en: "Automatically closed localhost:%@ (running over %d minutes)"],
-    "update.downloading": [.zh: "正在下載更新…", .en: "Downloading update…"],
-    "update.downloadFailed": [.zh: "下載失敗", .en: "Download failed"],
-    "update.downloadFailedWithError": [.zh: "更新下載失敗：%@", .en: "Update download failed: %@"],
-    "update.installing": [.zh: "正在安裝…", .en: "Installing…"],
-    "update.mountFailed": [.zh: "掛載更新檔失敗", .en: "Failed to mount the update image"],
-    "update.appNotFoundInImage": [.zh: "更新檔裡找不到 mole.app", .en: "Couldn't find mole.app inside the update image"],
-    "update.replacing": [.zh: "正在替換舊版本…", .en: "Replacing the old version…"],
-    "update.copyFailed": [.zh: "複製新版本失敗：%@", .en: "Failed to copy the new version: %@"],
-    "update.installFailed": [.zh: "安裝新版本失敗（可能沒有寫入權限），請自己到 Release 頁面下載安裝：%@", .en: "Failed to install the new version (maybe a permissions issue) — download it manually from the Releases page: %@"],
-    "update.restarting": [.zh: "更新完成，重新啟動中…", .en: "Update complete, restarting…"],
-    "update.updating": [.zh: "正在更新…", .en: "Updating…"],
-    "settings.reportIssue": [.zh: "回報問題", .en: "Report an Issue"],
-    "update.newVersionAvailable": [.zh: "🎉 有新版本 v%@ 可下載", .en: "🎉 A new version (v%@) is available"],
-    "update.now": [.zh: "立即更新", .en: "Update Now"],
-    "update.viewRelease": [.zh: "前往查看", .en: "View Release"],
-]
-
-private func tf(_ key: String, _ args: CVarArg...) -> String {
-    String(format: t(key), arguments: args)
-}
-
-func t(_ key: String) -> String {
-    localizedStrings[key]?[AppLanguage.current] ?? key
-}
+// The AppLanguage enum, t()/tf() lookups, and all 9 languages' copy now live
+// in App/Localization/ (Localization.swift assembles Strings.*.swift files).
+// See that folder before adding any new user-visible string.
 
 // MARK: - Design tokens
 
@@ -794,7 +712,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         label.textColor = .plTextTertiary
         label.alignment = .center
 
-        let zzz = NSTextField(labelWithString: "zzz⋯")
+        let zzz = NSTextField(labelWithString: t("empty.zzz"))
         zzz.font = NSFont(name: "Noteworthy", size: 13) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
         zzz.textColor = .plTextTertiary.withAlphaComponent(0.8)
         zzz.alignment = .center
@@ -891,7 +809,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         let processBadge = makeBadge(info.processName, bg: .plRowBgMuted, fg: .plTextSecondary)
         // 拿掉會呼吸的綠色圓點，改成單純的綠字「Running」——那顆點本身佔掉的寬度
         // 跟它自己的內距，就是「Running 跟時間隔太遠」視覺上的主因之一。
-        let runningIndicator = NSTextField(labelWithString: "Running")
+        let runningIndicator = NSTextField(labelWithString: t("project.running"))
         runningIndicator.font = NSFont.systemFont(ofSize: 11)
         runningIndicator.textColor = NSColor(calibratedRed: 0.227, green: 0.486, blue: 0.251, alpha: 1)
         let durationLabel = NSTextField(labelWithString: shortUptime(info.uptimeSeconds))
@@ -920,7 +838,7 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         let pinButton = ClosureButton(onClick: { [weak self] in
             self?.onTogglePersistent?(info.port)
         })
-        pinButton.image = NSImage(systemSymbolName: isPinned ? "star.fill" : "star", accessibilityDescription: "常駐")
+        pinButton.image = NSImage(systemSymbolName: isPinned ? "star.fill" : "star", accessibilityDescription: t("project.keepAlive"))
         pinButton.isBordered = false
         pinButton.bezelStyle = .inline
         pinButton.contentTintColor = isPinned ? .plAccent : .plTextTertiary
@@ -932,12 +850,12 @@ final class PortsTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         let stopButton = ClosureButton(onClick: { [weak self] in
             self?.onStop?(info)
         })
-        stopButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Stop")
+        stopButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: t("project.stop"))
         stopButton.imageScaling = .scaleProportionallyDown
         stopButton.isBordered = false
         stopButton.bezelStyle = .inline
         stopButton.contentTintColor = .plDanger
-        stopButton.toolTip = "Stop"
+        stopButton.toolTip = t("project.stop")
         stopButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
         stopButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
@@ -1117,14 +1035,20 @@ final class SettingsViewController: NSViewController {
         label.textColor = .plTextPrimary
         label.translatesAutoresizingMaskIntoConstraints = false
 
+        // 9 個語言，永遠按固定順序（絕不按字母排序），每個語言都用它「自己」的
+        // 原生名稱顯示——這樣使用者就算目前卡在看不懂的語言裡，也找得到自己的語言。
         let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        popup.addItem(withTitle: "繁體中文")
-        popup.addItem(withTitle: "English")
-        popup.selectItem(at: AppLanguage.current == .zh ? 0 : 1)
+        for language in AppLanguage.orderedLanguages {
+            popup.addItem(withTitle: language.nativeName)
+        }
+        if let idx = AppLanguage.orderedLanguages.firstIndex(of: AppLanguage.current) {
+            popup.selectItem(at: idx)
+        }
         popup.target = self
         popup.action = #selector(languageChanged(_:))
         popup.translatesAutoresizingMaskIntoConstraints = false
-        popup.widthAnchor.constraint(equalToConstant: 140).isActive = true
+        popup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        popup.widthAnchor.constraint(greaterThanOrEqualToConstant: 170).isActive = true
 
         container.addSubview(label)
         container.addSubview(popup)
@@ -1153,7 +1077,9 @@ final class SettingsViewController: NSViewController {
     }
 
     @objc private func languageChanged(_ sender: NSPopUpButton) {
-        AppLanguage.current = sender.indexOfSelectedItem == 0 ? .zh : .en
+        let idx = sender.indexOfSelectedItem
+        guard idx >= 0 && idx < AppLanguage.orderedLanguages.count else { return }
+        AppLanguage.current = AppLanguage.orderedLanguages[idx]
         onLanguageChanged?()
         refreshLocalizedContent()
     }
@@ -1233,7 +1159,7 @@ final class SettingsViewController: NSViewController {
         bottomLeft.spacing = 5
 
         // 右下：署名，顏文字保留、不跟著語言切換翻譯。
-        let creditLabel = NSTextField(labelWithString: "由 溫 Wen 和 Claude 協同製作 ⌯^⦁𖥦⦁^⌯")
+        let creditLabel = NSTextField(labelWithString: t("about.credit"))
         creditLabel.font = NSFont.systemFont(ofSize: 10)
         creditLabel.textColor = .plTextTertiary
 
@@ -1817,7 +1743,7 @@ final class MainViewController: NSViewController {
             // 90pt 寬在中文「選擇資料夾」還好，切到英文「Choose Folder」就會被切字，
             // 所以稍微加寬，高度照比例（2.24:1）一起放大，維持不變形。
             chooseButton.heightAnchor.constraint(equalToConstant: 54).isActive = true
-            chooseButton.widthAnchor.constraint(equalToConstant: 120).isActive = true
+            chooseButton.widthAnchor.constraint(equalToConstant: 150).isActive = true
 
             contentStack.addArrangedSubview(mascot)
             contentStack.addArrangedSubview(title)
@@ -1918,7 +1844,8 @@ final class MainViewController: NSViewController {
         }
         popup.target = self
         popup.action = #selector(expirePopupChanged(_:))
-        popup.widthAnchor.constraint(equalToConstant: 130).isActive = true
+        popup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        popup.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
         expirePopup = popup
 
         let row = NSStackView(views: [textStack, NSView(), popup])
@@ -1987,7 +1914,7 @@ final class MainViewController: NSViewController {
         let refreshButton = ClosureButton(onClick: { [weak self] in self?.refresh() })
         refreshButton.isBordered = false
         refreshButton.bezelStyle = .inline
-        refreshButton.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "重新整理")
+        refreshButton.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: t("running.refresh"))
         refreshButton.contentTintColor = .plTextSecondary
         trailingViews.append(refreshButton)
 
@@ -2012,8 +1939,14 @@ final class MainViewController: NSViewController {
     // MARK: Actions
 
     private func openBrowser(port: String) {
-        if let url = URL(string: "http://localhost:\(port)") {
-            NSWorkspace.shared.open(url)
+        guard let url = URL(string: "http://localhost:\(port)") else { return }
+        NSWorkspace.shared.open(url, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+            guard error != nil else { return }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.autoExpiredNotice = t("error.browserFailedToOpen")
+                self.rebuildAutoClose()
+            }
         }
     }
 
@@ -2086,7 +2019,7 @@ final class MainViewController: NSViewController {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "選擇"
+        panel.prompt = t("common.choose")
         guard let window = view.window else { return }
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
@@ -2162,16 +2095,32 @@ final class MainViewController: NSViewController {
 
     // MARK: Launch + poll
 
+    // 啟動流程現在分成幾個「真的對應得到實際步驟」的階段，而不是只有偵測中／
+    // 等待中兩種文字：偵測 → 準備環境（抓目前 port 快照，作為之後比對新 port 的
+    // 基準）→ 啟動開發伺服器（實際 launchProject）→ 等待 localhost（輪詢）→
+    // 開啟瀏覽器 → 完成，每一段文字都對應到程式碼裡真正發生的那一刻，
+    // 不是硬湊出來的假進度。
     private func launchAndAutoOpen(path: String) {
         isLaunching = true
-        launchStatus = t("launch.detecting")
+        launchStatus = t("loading.detecting")
         rebuildHeroCard()
         let token = UUID()
         pollToken = token
         let projectName = URL(fileURLWithPath: path).lastPathComponent
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            DispatchQueue.main.async {
+                guard let self = self, self.pollToken == token else { return }
+                self.launchStatus = t("loading.preparing")
+                self.rebuildHeroCard()
+            }
             let before = Set(fetchPorts().filter { $0.isDev }.map { $0.port })
+
+            DispatchQueue.main.async {
+                guard let self = self, self.pollToken == token else { return }
+                self.launchStatus = t("loading.startingServer")
+                self.rebuildHeroCard()
+            }
             launchProject(at: path)
 
             Thread.sleep(forTimeInterval: 0.5)
@@ -2188,7 +2137,7 @@ final class MainViewController: NSViewController {
 
             DispatchQueue.main.async {
                 guard let self = self, self.pollToken == token else { return }
-                self.launchStatus = t("launch.waitingServer")
+                self.launchStatus = t("loading.waitingLocalhost")
                 self.rebuildHeroCard()
             }
 
@@ -2238,12 +2187,25 @@ final class MainViewController: NSViewController {
         if let newOne = current.first(where: { !before.contains($0.port) }) {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.pollToken == token else { return }
-                self.isLaunching = false
-                self.launchStatus = ""
-                self.launchedProjectNames[newOne.port] = projectName
+                self.launchStatus = t("loading.openingBrowser")
                 self.rebuildHeroCard()
+                self.launchedProjectNames[newOne.port] = projectName
                 self.refresh()
                 self.openBrowser(port: newOne.port)
+
+                // 短暫顯示「準備完成」再清掉狀態，給使用者一個明確的完成訊號，
+                // 而不是瀏覽器一開就直接跳回拖曳畫面。
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    guard self.pollToken == token else { return }
+                    self.launchStatus = t("loading.ready")
+                    self.rebuildHeroCard()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                        guard self.pollToken == token else { return }
+                        self.isLaunching = false
+                        self.launchStatus = ""
+                        self.rebuildHeroCard()
+                    }
+                }
             }
         } else {
             pollForNewServer(before: before, projectName: projectName, attemptsLeft: attemptsLeft - 1, token: token)
@@ -2264,6 +2226,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        checkLocalizationConsistency()
+        #endif
         let vc = MainViewController()
         mainViewController = vc
         let win = NSWindow(contentViewController: vc)
