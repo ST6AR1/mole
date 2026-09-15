@@ -356,7 +356,32 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "expire.2h": [.zh: "2 小時（預設）", .en: "2 hours (default)"],
     "expire.4h": [.zh: "4 小時", .en: "4 hours"],
     "expire.never": [.zh: "停用自動過期", .en: "Never"],
+    "launch.detecting": [.zh: "正在偵測專案類型…", .en: "Detecting project type…"],
+    "launch.waitingServer": [.zh: "已在背景啟動，等待服務就緒…", .en: "Launched in the background, waiting for it to come up…"],
+    "launch.opened": [.zh: "（已開啟）", .en: " (opened)"],
+    "launch.noPortNotice": [.zh: "已啟動，但沒有偵測到新的網頁 port（可能是原生 App、純後端／資料庫服務，本來就不會有網頁；若還在等 Docker，可以到 Terminal 視窗確認進度，不需要重新拖曳）", .en: "Launched, but no new web port was detected (it may be a native app or a backend/database service with no web page — that's expected. If it's still waiting on Docker, check the log instead of dragging it in again)"],
+    "launch.waitingElapsed": [.zh: "等待服務就緒…（已等待 %d 秒，隨時可以到 Terminal 查看）", .en: "Waiting for it to come up… (%d sec so far, check the log anytime)"],
+    "launch.elapsedSuffix": [.zh: "（已等待 %d 秒）", .en: " (%d sec so far)"],
+    "autoclose.notice": [.zh: "已自動關閉 localhost:%@（運行超過 %d 分鐘）", .en: "Automatically closed localhost:%@ (running over %d minutes)"],
+    "update.downloading": [.zh: "正在下載更新…", .en: "Downloading update…"],
+    "update.downloadFailed": [.zh: "下載失敗", .en: "Download failed"],
+    "update.downloadFailedWithError": [.zh: "更新下載失敗：%@", .en: "Update download failed: %@"],
+    "update.installing": [.zh: "正在安裝…", .en: "Installing…"],
+    "update.mountFailed": [.zh: "掛載更新檔失敗", .en: "Failed to mount the update image"],
+    "update.appNotFoundInImage": [.zh: "更新檔裡找不到 mole.app", .en: "Couldn't find mole.app inside the update image"],
+    "update.replacing": [.zh: "正在替換舊版本…", .en: "Replacing the old version…"],
+    "update.copyFailed": [.zh: "複製新版本失敗：%@", .en: "Failed to copy the new version: %@"],
+    "update.installFailed": [.zh: "安裝新版本失敗（可能沒有寫入權限），請自己到 Release 頁面下載安裝：%@", .en: "Failed to install the new version (maybe a permissions issue) — download it manually from the Releases page: %@"],
+    "update.restarting": [.zh: "更新完成，重新啟動中…", .en: "Update complete, restarting…"],
+    "update.updating": [.zh: "正在更新…", .en: "Updating…"],
+    "update.newVersionAvailable": [.zh: "🎉 有新版本 v%@ 可下載", .en: "🎉 A new version (v%@) is available"],
+    "update.now": [.zh: "立即更新", .en: "Update Now"],
+    "update.viewRelease": [.zh: "前往查看", .en: "View Release"],
 ]
+
+private func tf(_ key: String, _ args: CVarArg...) -> String {
+    String(format: t(key), arguments: args)
+}
 
 func t(_ key: String) -> String {
     localizedStrings[key]?[AppLanguage.current] ?? key
@@ -1455,7 +1480,7 @@ final class MainViewController: NSViewController {
             spinner.startAnimation(nil)
             spinner.translatesAutoresizingMaskIntoConstraints = false
 
-            let label = NSTextField(labelWithString: updateStatus.isEmpty ? "正在更新…" : updateStatus)
+            let label = NSTextField(labelWithString: updateStatus.isEmpty ? t("update.updating") : updateStatus)
             label.font = NSFont.systemFont(ofSize: 12)
             label.textColor = .plTextPrimary
 
@@ -1471,7 +1496,7 @@ final class MainViewController: NSViewController {
                 row.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -10)
             ])
         } else {
-            let label = NSTextField(labelWithString: "🎉 有新版本 v\(update.version) 可下載")
+            let label = NSTextField(labelWithString: tf("update.newVersionAvailable", update.version))
             label.font = NSFont.systemFont(ofSize: 12)
             label.textColor = .plTextPrimary
             label.translatesAutoresizingMaskIntoConstraints = false
@@ -1487,7 +1512,7 @@ final class MainViewController: NSViewController {
             actionButton.isBordered = false
             actionButton.bezelStyle = .inline
             actionButton.attributedTitle = NSAttributedString(
-                string: update.dmgURL != nil ? "立即更新" : "前往查看",
+                string: update.dmgURL != nil ? t("update.now") : t("update.viewRelease"),
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 12, weight: .medium),
                     .foregroundColor: NSColor.plUpdateText
@@ -1511,7 +1536,7 @@ final class MainViewController: NSViewController {
     private func performUpdate(_ update: UpdateInfo) {
         guard let dmgURL = update.dmgURL else { return }
         isUpdating = true
-        updateStatus = "正在下載更新…"
+        updateStatus = t("update.downloading")
         rebuildUpdateBanner()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1527,7 +1552,7 @@ final class MainViewController: NSViewController {
             }
 
             let tmpDir = FileManager.default.temporaryDirectory
-            let dmgPath = tmpDir.appendingPathComponent("SmartLaunch-update-\(UUID().uuidString).dmg")
+            let dmgPath = tmpDir.appendingPathComponent("mole-update-\(UUID().uuidString).dmg")
 
             let semaphore = DispatchSemaphore(value: 0)
             var downloadError: String?
@@ -1538,7 +1563,7 @@ final class MainViewController: NSViewController {
                     return
                 }
                 guard let location = location else {
-                    downloadError = "下載失敗"
+                    downloadError = t("update.downloadFailed")
                     return
                 }
                 do {
@@ -1550,13 +1575,13 @@ final class MainViewController: NSViewController {
             semaphore.wait()
 
             if let err = downloadError {
-                fail("更新下載失敗：\(err)")
+                fail(tf("update.downloadFailedWithError", err))
                 return
             }
 
-            DispatchQueue.main.async { self?.updateStatus = "正在安裝…"; self?.rebuildUpdateBanner() }
+            DispatchQueue.main.async { self?.updateStatus = t("update.installing"); self?.rebuildUpdateBanner() }
 
-            let mountPoint = tmpDir.appendingPathComponent("SmartLaunchMount-\(UUID().uuidString)").path
+            let mountPoint = tmpDir.appendingPathComponent("mole-mount-\(UUID().uuidString)").path
             try? FileManager.default.createDirectory(atPath: mountPoint, withIntermediateDirectories: true)
 
             let attach = Process()
@@ -1568,7 +1593,7 @@ final class MainViewController: NSViewController {
                 try attach.run()
                 attach.waitUntilExit()
             } catch {
-                fail("掛載更新檔失敗")
+                fail(t("update.mountFailed"))
                 return
             }
 
@@ -1582,21 +1607,21 @@ final class MainViewController: NSViewController {
                 detach.waitUntilExit()
             }
 
-            let newAppPath = mountPoint + "/SmartLaunch.app"
+            let newAppPath = mountPoint + "/mole.app"
             guard FileManager.default.fileExists(atPath: newAppPath) else {
                 detachDMG()
-                fail("更新檔裡找不到 SmartLaunch.app")
+                fail(t("update.appNotFoundInImage"))
                 return
             }
 
-            DispatchQueue.main.async { self?.updateStatus = "正在替換舊版本…"; self?.rebuildUpdateBanner() }
+            DispatchQueue.main.async { self?.updateStatus = t("update.replacing"); self?.rebuildUpdateBanner() }
 
-            let stagingPath = tmpDir.appendingPathComponent("SmartLaunch-new-\(UUID().uuidString).app").path
+            let stagingPath = tmpDir.appendingPathComponent("mole-new-\(UUID().uuidString).app").path
             do {
                 try FileManager.default.copyItem(atPath: newAppPath, toPath: stagingPath)
             } catch {
                 detachDMG()
-                fail("複製新版本失敗：\(error.localizedDescription)")
+                fail(tf("update.copyFailed", error.localizedDescription))
                 return
             }
             detachDMG()
@@ -1614,11 +1639,11 @@ final class MainViewController: NSViewController {
                 try FileManager.default.removeItem(atPath: currentAppPath)
                 try FileManager.default.copyItem(atPath: stagingPath, toPath: currentAppPath)
             } catch {
-                fail("安裝新版本失敗（可能沒有寫入權限），請自己到 Release 頁面下載安裝：\(error.localizedDescription)")
+                fail(tf("update.installFailed", error.localizedDescription))
                 return
             }
 
-            DispatchQueue.main.async { self?.updateStatus = "更新完成，重新啟動中…"; self?.rebuildUpdateBanner() }
+            DispatchQueue.main.async { self?.updateStatus = t("update.restarting"); self?.rebuildUpdateBanner() }
 
             let openTask = Process()
             openTask.executableURL = URL(fileURLWithPath: "/usr/bin/open")
@@ -2087,7 +2112,7 @@ final class MainViewController: NSViewController {
             guard !isPersistent(info.port) else { continue }
             if info.uptimeSeconds >= limitSeconds {
                 Darwin.kill(info.pid, SIGTERM)
-                autoExpiredNotice = "已自動關閉 localhost:\(info.port)（運行超過 \(expireMinutes) 分鐘）"
+                autoExpiredNotice = tf("autoclose.notice", info.port, expireMinutes)
                 rebuildAutoClose()
             }
         }
@@ -2097,7 +2122,7 @@ final class MainViewController: NSViewController {
 
     private func launchAndAutoOpen(path: String) {
         isLaunching = true
-        launchStatus = "正在偵測專案類型…"
+        launchStatus = t("launch.detecting")
         rebuildHeroCard()
         let token = UUID()
         pollToken = token
@@ -2113,7 +2138,7 @@ final class MainViewController: NSViewController {
                     guard let self = self, self.pollToken == token else { return }
                     self.isLaunching = false
                     self.launchStatus = ""
-                    self.lastLaunched += "（已開啟）"
+                    self.lastLaunched += t("launch.opened")
                     self.rebuildHeroCard()
                 }
                 return
@@ -2121,7 +2146,7 @@ final class MainViewController: NSViewController {
 
             DispatchQueue.main.async {
                 guard let self = self, self.pollToken == token else { return }
-                self.launchStatus = "已在 Terminal 啟動，等待服務就緒…"
+                self.launchStatus = t("launch.waitingServer")
                 self.rebuildHeroCard()
             }
 
@@ -2142,7 +2167,7 @@ final class MainViewController: NSViewController {
                 guard let self = self, self.pollToken == token else { return }
                 self.isLaunching = false
                 self.launchStatus = ""
-                self.autoExpiredNotice = "已啟動，但沒有偵測到新的網頁 port（可能是原生 App、純後端／資料庫服務，本來就不會有網頁；若還在等 Docker，可以到 Terminal 視窗確認進度，不需要重新拖曳）"
+                self.autoExpiredNotice = t("launch.noPortNotice")
                 self.rebuildHeroCard()
                 self.rebuildAutoClose()
                 self.refresh()
@@ -2160,9 +2185,9 @@ final class MainViewController: NSViewController {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.pollToken == token else { return }
                 if logLine.isEmpty {
-                    self.launchStatus = "等待服務就緒…（已等待 \(elapsed) 秒，隨時可以到 Terminal 查看）"
+                    self.launchStatus = tf("launch.waitingElapsed", elapsed)
                 } else {
-                    self.launchStatus = "\(logLine)\n（已等待 \(elapsed) 秒）"
+                    self.launchStatus = "\(logLine)\n" + tf("launch.elapsedSuffix", elapsed)
                 }
                 self.rebuildHeroCard()
             }
@@ -2189,6 +2214,7 @@ final class MainViewController: NSViewController {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
     var mainViewController: MainViewController!
+    private var pendingOpenURLs: [URL] = []
 
     // 徹底關掉 macOS 的「上次意外退出，要不要重新打開視窗」對話框。
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -2221,6 +2247,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
+
+        // 冷啟動時「拖到 Dock 圖示」的 open-urls 事件常常在這個 callback 跑完之前就送到，
+        // 那時 mainViewController 還是 nil，會被 application(_:open:) 悄悄吃掉——所以先暫存，這裡補送一次。
+        if !pendingOpenURLs.isEmpty {
+            let urls = pendingOpenURLs
+            pendingOpenURLs = []
+            for url in urls {
+                mainViewController?.handleOpenURL(url)
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -2231,6 +2267,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        guard mainViewController != nil else {
+            pendingOpenURLs.append(contentsOf: urls)
+            return
+        }
         for url in urls {
             mainViewController?.handleOpenURL(url)
         }
