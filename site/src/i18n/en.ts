@@ -115,6 +115,7 @@ export const en: Dictionary = {
     github: "GitHub",
     download: "Download",
     changelog: "Changelog",
+    contact: "Contact",
     license: "License",
     privacy: "Privacy",
     credit:
@@ -161,9 +162,16 @@ export const en: Dictionary = {
       { key: "jkopay", label: "街口支付", ready: false },
       { key: "ghsponsors", label: "GitHub Sponsors", ready: false },
     ],
-    contactHeading: "Don't see your way?",
-    contactBody:
-      "Alipay, a Taiwan option, or anything else — just ask and it'll get added.",
+    contactBody: "Need another way to support? Contact the author.",
     contactEmail: "st6ar1@gmail.com",
+  },
+  contact: {
+    metaTitle: "Contact",
+    metaDescription:
+      "Questions, feedback, or a bug to report? Send an email — collaboration inquiries welcome too.",
+    heading: "Get in touch",
+    body: "Questions, feedback, a bug to report, or just want to say hi? Send an email — collaboration inquiries welcome too.",
+    email: "st6ar1@gmail.com",
+    backHome: "Back to Mole",
   },
 };

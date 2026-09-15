@@ -77,6 +77,7 @@ export interface Dictionary {
     github: string;
     download: string;
     changelog: string;
+    contact: string;
     license: string;
     privacy: string;
     credit: string;
@@ -103,8 +104,15 @@ export interface Dictionary {
       qr?: boolean;
       qrCaption?: string;
     }[];
-    contactHeading: string;
     contactBody: string;
     contactEmail: string;
+  };
+  contact: {
+    metaTitle: string;
+    metaDescription: string;
+    heading: string;
+    body: string;
+    email: string;
+    backHome: string;
   };
 }

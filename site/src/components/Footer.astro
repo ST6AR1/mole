@@ -22,6 +22,7 @@ const { dict, release } = Astro.props;
         <a href={REPO_URL} target="_blank" rel="noopener noreferrer">{dict.footer.github}</a>
         <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">{dict.footer.download}</a>
         <a href={withBase("/changelog")}>{dict.footer.changelog}</a>
+        <a href={withBase("/contact")}>{dict.footer.contact}</a>
         <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer">{dict.footer.license}</a>
         <a href={withBase("/privacy")}>{dict.footer.privacy}</a>
       </nav>

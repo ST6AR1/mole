@@ -68,7 +68,6 @@ const release = await getLatestRelease();
         </div>
 
         <div class="contact-block reveal">
-          <h3>{dict.support.contactHeading}</h3>
           <p class="muted">{dict.support.contactBody}</p>
           <a class="contact-email" href={`mailto:${dict.support.contactEmail}`}>
             {dict.support.contactEmail}
@@ -131,8 +130,8 @@ const release = await getLatestRelease();
   }
 
   .method-card.is-ready {
-    background: color-mix(in srgb, var(--folder-blue) 12%, var(--surface));
-    border-color: var(--folder-blue);
+    background: color-mix(in srgb, var(--butter) 22%, var(--surface));
+    border-color: var(--soil-light);
   }
 
   a.method-card.is-ready {
@@ -142,7 +141,7 @@ const release = await getLatestRelease();
   }
 
   a.method-card.is-ready:hover {
-    background: color-mix(in srgb, var(--folder-blue) 24%, var(--surface));
+    background: color-mix(in srgb, var(--butter) 38%, var(--surface));
     transform: translateY(-2px);
   }
 
@@ -191,16 +190,12 @@ const release = await getLatestRelease();
     gap: var(--sp-2);
   }
 
-  .contact-block h3 {
-    font-size: 1.0625rem;
-  }
-
   .contact-email {
     margin-top: var(--sp-1);
     font-weight: 600;
     color: var(--soil);
     text-decoration: none;
-    border-bottom: 1px solid var(--folder-blue);
+    border-bottom: 1px solid var(--soil-light);
   }
 
   .contact-email:hover {
