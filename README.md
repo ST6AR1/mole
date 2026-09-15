@@ -70,10 +70,6 @@ cd mole
 gh release create vX.Y.Z mole-X.Y.Z.dmg --title "vX.Y.Z" --notes "這次改了什麼"
 ```
 
-## 授權
-
-MIT License
-
 ---
 
 由 溫 Wen 和 Claude 協同製作 ⌯^⦁𖥦⦁^⌯
