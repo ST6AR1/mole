@@ -13,9 +13,9 @@ const { dict } = Astro.props;
 <section class="mole-moment section">
   <div class="container scene-wrap reveal" data-anim="dig-poke" data-frame="0">
     <div class="ground-line" aria-hidden="true">
-      <span class="folder folder-a" aria-hidden="true"></span>
-      <span class="folder folder-b" aria-hidden="true"></span>
-      <span class="folder folder-c" aria-hidden="true"></span>
+      <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-a" />
+      <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-b" />
+      <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-c" />
     </div>
 
     <div class="mound-stack" aria-hidden="true">
@@ -52,27 +52,24 @@ const { dict } = Astro.props;
     background: var(--border-strong);
   }
 
-  .folder {
+  /* :global() — MoleArt's <img> lives outside this file's style scope. */
+  .ground-line :global(.folder-img) {
     position: absolute;
-    bottom: 6px;
-    width: 34px;
-    height: 26px;
-    background: var(--folder-blue);
-    border: 1.5px solid var(--folder-blue-deep);
-    border-radius: 3px;
+    bottom: -2px;
+    filter: drop-shadow(0 4px 6px rgba(30, 29, 27, 0.12));
   }
 
-  .folder-a {
+  .ground-line :global(.folder-a) {
     left: 8%;
-    transform: rotate(-6deg);
+    transform: rotate(-8deg);
   }
-  .folder-b {
-    left: 48%;
-    transform: rotate(3deg) translateY(-6px);
+  .ground-line :global(.folder-b) {
+    left: 46%;
+    transform: rotate(5deg) translateY(-10px);
   }
-  .folder-c {
-    left: 82%;
-    transform: rotate(-2deg);
+  .ground-line :global(.folder-c) {
+    left: 80%;
+    transform: rotate(-4deg);
   }
 
   .mound-stack {
@@ -86,13 +83,17 @@ const { dict } = Astro.props;
     inset: 0;
     margin-inline: auto;
     opacity: 0;
-    transition: opacity var(--dur-med) var(--ease-out);
+    transform: scale(0.94) translateY(4px);
+    transition:
+      opacity 420ms var(--ease-out),
+      transform 420ms var(--ease-out);
   }
 
   [data-frame="0"] :global(.frame-0),
   [data-frame="1"] :global(.frame-1),
   [data-frame="2"] :global(.frame-2) {
     opacity: 1;
+    transform: scale(1) translateY(0);
   }
 
   .moment-copy p {

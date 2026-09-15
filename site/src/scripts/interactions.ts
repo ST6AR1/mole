@@ -41,14 +41,21 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
 const digScene = document.querySelector<HTMLElement>('[data-anim="dig-poke"]');
 if (digScene && !reduceMotion) {
   let played = false;
+  // Deliberately slow enough to read as the mole popping up in three beats,
+  // not a flicker — each frame holds for half a second before the next.
   const frames = [0, 1, 2];
+  const frameDelayMs = 520;
+  const startDelayMs = 200;
   const playSequence = () => {
     if (played) return;
     played = true;
     frames.forEach((frame, i) => {
-      window.setTimeout(() => {
-        digScene.dataset.frame = String(frame);
-      }, i * 160);
+      window.setTimeout(
+        () => {
+          digScene.dataset.frame = String(frame);
+        },
+        startDelayMs + i * frameDelayMs,
+      );
     });
   };
 
