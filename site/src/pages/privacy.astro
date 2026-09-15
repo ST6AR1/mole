@@ -2,57 +2,45 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { getDictionary } from "../i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 import { getLatestRelease } from "../data/release";
 import { REPO_URL } from "../utils/url";
 
-const dict = getDictionary();
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
 const release = await getLatestRelease();
 ---
 
 <BaseLayout
-  title="Privacy — Mole"
-  description="Mole runs entirely on your own machine. Here's exactly what it does and doesn't send over the network."
-  path="/privacy"
+  title={dict.privacyPage.metaTitle}
+  description={dict.privacyPage.metaDescription}
+  routePath="/privacy"
+  locale={locale}
 >
-  <Header dict={dict} />
+  <Header dict={dict} locale={locale} routePath="/privacy" />
   <main id="main">
     <section class="section">
       <div class="container container--narrow prose">
-        <h1>Privacy</h1>
-        <p class="muted">
-          Mole runs entirely on your own machine. It doesn't collect or
-          upload any usage data or project content.
-        </p>
+        <h1>{dict.privacyPage.heading}</h1>
+        <p class="muted">{dict.privacyPage.intro}</p>
 
-        <h2>The only network calls Mole makes</h2>
+        <h2>{dict.privacyPage.networkHeading}</h2>
         <ul>
-          <li>
-            Checking GitHub for a newer version on launch — a read-only call
-            to the public Releases API. No device info is sent.
-          </li>
-          <li>
-            Opening a pre-filled GitHub Issue page, only when you click
-            “Report an Issue” yourself.
-          </li>
+          <li>{dict.privacyPage.networkItem1}</li>
+          <li>{dict.privacyPage.networkItem2}</li>
         </ul>
 
-        <h2>This website</h2>
-        <p>
-          This site has no analytics, no tracking pixels, and no cookies
-          beyond what your browser sets for itself. Release and star-count
-          numbers shown here are fetched from the public GitHub API when the
-          site is built.
-        </p>
+        <h2>{dict.privacyPage.websiteHeading}</h2>
+        <p>{dict.privacyPage.websiteBody}</p>
 
         <p class="muted">
-          Questions? Open an issue on
+          {dict.privacyPage.questions}
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
         </p>
       </div>
     </section>
   </main>
-  <Footer dict={dict} release={release} />
+  <Footer dict={dict} release={release} locale={locale} />
 </BaseLayout>
 
 <style>

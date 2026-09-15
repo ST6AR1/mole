@@ -177,4 +177,29 @@ export const en: Dictionary = {
     email: "st6ar1@gmail.com",
     backHome: "Back to Mole",
   },
+  changelog: {
+    metaTitle: "Changelog — Mole",
+    metaDescription: "What's new in Mole, release by release.",
+    heading: "Changelog",
+    intro: "Generated from",
+    generatedFrom: "GitHub Releases",
+    viewOnGithub: "View on GitHub",
+  },
+  privacyPage: {
+    metaTitle: "Privacy — Mole",
+    metaDescription:
+      "Mole runs entirely on your own machine. Here's exactly what it does and doesn't send over the network.",
+    heading: "Privacy",
+    intro:
+      "Mole runs entirely on your own machine. It doesn't collect or upload any usage data or project content.",
+    networkHeading: "The only network calls Mole makes",
+    networkItem1:
+      "Checking GitHub for a newer version on launch — a read-only call to the public Releases API. No device info is sent.",
+    networkItem2:
+      "Opening a pre-filled GitHub Issue page, only when you click “Report an Issue” yourself.",
+    websiteHeading: "This website",
+    websiteBody:
+      "This site has no analytics, no tracking pixels, and no cookies beyond what your browser sets for itself. Release and star-count numbers shown here are fetched from the public GitHub API when the site is built.",
+    questions: "Questions? Open an issue on",
+  },
 };

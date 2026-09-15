@@ -2,17 +2,18 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { getDictionary } from "../i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 import { getAllReleases, getLatestRelease } from "../data/release";
 
-const dict = getDictionary();
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
 const [releases, release] = await Promise.all([
   getAllReleases(),
   getLatestRelease(),
 ]);
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -21,19 +22,20 @@ function formatDate(iso: string) {
 ---
 
 <BaseLayout
-  title="Changelog — Mole"
-  description="What's new in Mole, release by release."
-  path="/changelog"
+  title={dict.changelog.metaTitle}
+  description={dict.changelog.metaDescription}
+  routePath="/changelog"
+  locale={locale}
 >
-  <Header dict={dict} />
+  <Header dict={dict} locale={locale} routePath="/changelog" />
   <main id="main">
     <section class="section">
       <div class="container container--narrow">
-        <h1>Changelog</h1>
+        <h1>{dict.changelog.heading}</h1>
         <p class="muted intro">
-          Generated from
+          {dict.changelog.intro}
           <a href="https://github.com/ST6AR1/mole/releases" target="_blank" rel="noopener noreferrer"
-            >GitHub Releases</a
+            >{dict.changelog.generatedFrom}</a
           >.
         </p>
 
@@ -47,7 +49,7 @@ function formatDate(iso: string) {
                 </div>
                 <p class="release-body">{r.body}</p>
                 <a class="release-link" href={r.htmlUrl} target="_blank" rel="noopener noreferrer">
-                  View on GitHub
+                  {dict.changelog.viewOnGithub}
                 </a>
               </li>
             ))
@@ -56,7 +58,7 @@ function formatDate(iso: string) {
       </div>
     </section>
   </main>
-  <Footer dict={dict} release={release} />
+  <Footer dict={dict} release={release} locale={locale} />
 </BaseLayout>
 
 <style>

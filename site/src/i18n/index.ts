@@ -1,16 +1,18 @@
 import { en } from "./en";
+import { zhCN } from "./zh-CN";
 import type { Dictionary } from "./types";
-import { defaultLocale, locales } from "./config";
+import { defaultLocale, locales, readyLocales } from "./config";
 
 const dictionaries: Partial<Record<string, Dictionary>> = {
   en,
+  "zh-CN": zhCN,
 };
 
-// v1 always resolves to English; once a locale's file lands, register it
-// above and this starts serving it for real for that locale code.
+// Resolves a locale code (e.g. Astro.currentLocale) to its dictionary,
+// falling back to the default locale for any not-yet-translated language.
 export function getDictionary(locale: string = defaultLocale): Dictionary {
   return dictionaries[locale] ?? dictionaries[defaultLocale]!;
 }
 
-export { locales, defaultLocale };
+export { locales, readyLocales, defaultLocale };
 export type { Dictionary };

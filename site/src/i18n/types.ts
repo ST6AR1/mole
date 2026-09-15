@@ -115,4 +115,24 @@ export interface Dictionary {
     email: string;
     backHome: string;
   };
+  changelog: {
+    metaTitle: string;
+    metaDescription: string;
+    heading: string;
+    intro: string;
+    generatedFrom: string;
+    viewOnGithub: string;
+  };
+  privacyPage: {
+    metaTitle: string;
+    metaDescription: string;
+    heading: string;
+    intro: string;
+    networkHeading: string;
+    networkItem1: string;
+    networkItem2: string;
+    websiteHeading: string;
+    websiteBody: string;
+    questions: string;
+  };
 }

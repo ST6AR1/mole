@@ -11,18 +11,24 @@ import VibeCoding from "../components/VibeCoding.astro";
 import OpenSource from "../components/OpenSource.astro";
 import DownloadCta from "../components/DownloadCta.astro";
 import Footer from "../components/Footer.astro";
-import { getDictionary } from "../i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 import { getLatestRelease, getStarCount } from "../data/release";
 
-const dict = getDictionary();
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
 const [release, stars] = await Promise.all([
   getLatestRelease(),
   getStarCount(),
 ]);
 ---
 
-<BaseLayout title={dict.meta.title} description={dict.meta.description} path="/">
-  <Header dict={dict} />
+<BaseLayout
+  title={dict.meta.title}
+  description={dict.meta.description}
+  routePath="/"
+  locale={locale}
+>
+  <Header dict={dict} locale={locale} routePath="/" />
   <LogoBand />
   <main id="main">
     <Hero dict={dict} release={release} />
@@ -31,8 +37,8 @@ const [release, stars] = await Promise.all([
     <Features dict={dict} />
     <MoleMoment dict={dict} />
     <VibeCoding dict={dict} />
-    <OpenSource dict={dict} stars={stars} />
+    <OpenSource dict={dict} stars={stars} locale={locale} />
     <DownloadCta dict={dict} release={release} />
   </main>
-  <Footer dict={dict} release={release} />
+  <Footer dict={dict} release={release} locale={locale} />
 </BaseLayout>

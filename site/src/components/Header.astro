@@ -1,32 +1,58 @@
 ---
 import type { Dictionary } from "../i18n/types";
-import { withBase, REPO_URL, RELEASES_URL } from "../utils/url";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { REPO_URL, RELEASES_URL } from "../utils/url";
+import { readyLocales } from "../i18n/config";
 import MoleArt from "./MoleArt.astro";
 
 interface Props {
   dict: Dictionary;
+  locale: string;
+  routePath: string; // current page's locale-agnostic route, e.g. "/support" — lets the language switcher stay on the same page
 }
-const { dict } = Astro.props;
+const { dict, locale, routePath } = Astro.props;
+const homeHref = getRelativeLocaleUrl(locale, "/");
 ---
 
 <header class="site-header" id="site-header">
   <div class="container container--wide header-inner">
-    <a href={withBase("/")} class="brand" aria-label="Mole home">
+    <a href={homeHref} class="brand" aria-label="Mole home">
       <MoleArt pose="wordmark-logo" width={160} alt="Mole" class="brand-mark" />
     </a>
 
     <nav class="nav" aria-label="Primary">
-      <a href="#features">{dict.nav.features}</a>
-      <a href={withBase("/changelog")}>{dict.nav.changelog}</a>
-      <a href={withBase("/support")}>{dict.nav.support}</a>
+      <a href={`${homeHref}#features`}>{dict.nav.features}</a>
+      <a href={getRelativeLocaleUrl(locale, "/changelog")}>{dict.nav.changelog}</a>
+      <a href={getRelativeLocaleUrl(locale, "/support")}>{dict.nav.support}</a>
       <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
         >{dict.nav.github}</a
       >
     </nav>
 
-    <a href={RELEASES_URL} class="header-cta" target="_blank" rel="noopener noreferrer">
-      {dict.nav.download}
-    </a>
+    <div class="header-right">
+      <div class="lang-switch" aria-label="Language">
+        {
+          readyLocales.map((l, i) => (
+            <>
+              {i > 0 && <span class="lang-dot" aria-hidden="true">·</span>}
+              {l.code === locale ? (
+                <span class="lang-current" aria-current="true">
+                  {l.label}
+                </span>
+              ) : (
+                <a href={getRelativeLocaleUrl(l.code, routePath)} lang={l.code}>
+                  {l.label}
+                </a>
+              )}
+            </>
+          ))
+        }
+      </div>
+
+      <a href={RELEASES_URL} class="header-cta" target="_blank" rel="noopener noreferrer">
+        {dict.nav.download}
+      </a>
+    </div>
   </div>
 </header>
 
@@ -104,6 +130,39 @@ const { dict } = Astro.props;
     color: var(--text);
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    margin-inline-start: auto;
+  }
+
+  .lang-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .lang-switch a {
+    color: var(--text-faint);
+    text-decoration: none;
+  }
+
+  .lang-switch a:hover {
+    color: var(--text-muted);
+  }
+
+  .lang-current {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .lang-dot {
+    color: var(--border-strong);
+  }
+
   .header-cta {
     display: inline-flex;
     align-items: center;
@@ -133,6 +192,12 @@ const { dict } = Astro.props;
     }
     .is-scrolled .header-inner {
       height: 52px;
+    }
+    .header-right {
+      gap: var(--sp-3);
+    }
+    .lang-switch {
+      font-size: 0.75rem;
     }
   }
 

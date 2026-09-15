@@ -5,20 +5,22 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import MoleArt from "../components/MoleArt.astro";
-import { getDictionary } from "../i18n";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 import { getLatestRelease } from "../data/release";
-import { withBase } from "../utils/url";
 
-const dict = getDictionary();
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
 const release = await getLatestRelease();
 ---
 
 <BaseLayout
   title={`${dict.contact.metaTitle} — Mole`}
   description={dict.contact.metaDescription}
-  path="/contact"
+  routePath="/contact"
+  locale={locale}
 >
-  <Header dict={dict} />
+  <Header dict={dict} locale={locale} routePath="/contact" />
   <main id="main">
     <section class="section">
       <div class="container container--narrow contact-head reveal">
@@ -28,13 +30,13 @@ const release = await getLatestRelease();
         <a class="contact-email" href={`mailto:${dict.contact.email}`}>
           {dict.contact.email}
         </a>
-        <a class="back-link" href={withBase("/")}>
+        <a class="back-link" href={getRelativeLocaleUrl(locale, "/")}>
           ← {dict.contact.backHome}
         </a>
       </div>
     </section>
   </main>
-  <Footer dict={dict} release={release} />
+  <Footer dict={dict} release={release} locale={locale} />
 </BaseLayout>
 
 <style>

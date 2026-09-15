@@ -5,25 +5,27 @@
 // or the WeChat QR block if `qr: true`) or still pending (ready: false,
 // muted, tagged "Preparing"). Flip `ready` and add `href` to go live.
 import { Image } from "astro:assets";
+import { getRelativeLocaleUrl } from "astro:i18n";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import MoleArt from "../components/MoleArt.astro";
-import { getDictionary } from "../i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 import { getLatestRelease } from "../data/release";
-import { withBase } from "../utils/url";
 import wechatQr from "../assets/support/wechat-qr.png";
 
-const dict = getDictionary();
+const locale = Astro.currentLocale ?? defaultLocale;
+const dict = getDictionary(locale);
 const release = await getLatestRelease();
 ---
 
 <BaseLayout
-  title={`${dict.support.metaTitle} — Mole`}
+  title={dict.support.metaTitle}
   description={dict.support.metaDescription}
-  path="/support"
+  routePath="/support"
+  locale={locale}
 >
-  <Header dict={dict} />
+  <Header dict={dict} locale={locale} routePath="/support" />
   <main id="main">
     <section class="section">
       <div class="container container--narrow support-head reveal">
@@ -84,13 +86,13 @@ const release = await getLatestRelease();
 
       <div class="container container--narrow support-footer reveal">
         <p class="muted">{dict.support.footnote}</p>
-        <a class="back-link" href={withBase("/")}>
+        <a class="back-link" href={getRelativeLocaleUrl(locale, "/")}>
           ← {dict.support.backHome}
         </a>
       </div>
     </section>
   </main>
-  <Footer dict={dict} release={release} />
+  <Footer dict={dict} release={release} locale={locale} />
 </BaseLayout>
 
 <style>

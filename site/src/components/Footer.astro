@@ -1,30 +1,33 @@
 ---
 import type { Dictionary } from "../i18n/types";
 import type { ReleaseInfo } from "../data/release";
+import { getRelativeLocaleUrl } from "astro:i18n";
 import MoleArt from "./MoleArt.astro";
-import { withBase, REPO_URL, RELEASES_URL, LICENSE_URL } from "../utils/url";
+import { REPO_URL, RELEASES_URL, LICENSE_URL } from "../utils/url";
+import { defaultLocale } from "../i18n/config";
 
 interface Props {
   dict: Dictionary;
   release: ReleaseInfo;
+  locale?: string;
 }
-const { dict, release } = Astro.props;
+const { dict, release, locale = defaultLocale } = Astro.props;
 ---
 
 <footer class="site-footer">
   <div class="container footer-inner">
     <div class="footer-top">
-      <a href={withBase("/")} class="footer-brand">
+      <a href={getRelativeLocaleUrl(locale, "/")} class="footer-brand">
         <MoleArt pose="wordmark-logo" width={130} alt="Mole" />
       </a>
 
       <nav class="footer-links" aria-label="Footer">
         <a href={REPO_URL} target="_blank" rel="noopener noreferrer">{dict.footer.github}</a>
         <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">{dict.footer.download}</a>
-        <a href={withBase("/changelog")}>{dict.footer.changelog}</a>
-        <a href={withBase("/contact")}>{dict.footer.contact}</a>
+        <a href={getRelativeLocaleUrl(locale, "/changelog")}>{dict.footer.changelog}</a>
+        <a href={getRelativeLocaleUrl(locale, "/contact")}>{dict.footer.contact}</a>
         <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer">{dict.footer.license}</a>
-        <a href={withBase("/privacy")}>{dict.footer.privacy}</a>
+        <a href={getRelativeLocaleUrl(locale, "/privacy")}>{dict.footer.privacy}</a>
       </nav>
     </div>
 

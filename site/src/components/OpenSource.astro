@@ -1,13 +1,16 @@
 ---
 import type { Dictionary } from "../i18n/types";
 import MoleArt from "./MoleArt.astro";
-import { REPO_URL, withBase } from "../utils/url";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { REPO_URL } from "../utils/url";
+import { defaultLocale } from "../i18n/config";
 
 interface Props {
   dict: Dictionary;
   stars: number | null;
+  locale?: string;
 }
-const { dict, stars } = Astro.props;
+const { dict, stars, locale = defaultLocale } = Astro.props;
 ---
 
 <section class="opensource section">
@@ -35,7 +38,7 @@ const { dict, stars } = Astro.props;
           {dict.openSource.ctaGithub}
           {stars !== null && <span class="star-count">{stars}</span>}
         </a>
-        <a class="support-link" href={withBase("/support")}>
+        <a class="support-link" href={getRelativeLocaleUrl(locale, "/support")}>
           {dict.openSource.support}
         </a>
       </div>

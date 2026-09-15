@@ -1,23 +1,27 @@
 ---
+// GitHub Pages serves this single root 404.html for any unmatched path,
+// regardless of locale — it can't know which locale the visitor wanted, so
+// it always renders in the default locale (English).
 import BaseLayout from "../layouts/BaseLayout.astro";
 import MoleArt from "../components/MoleArt.astro";
-import { getDictionary } from "../i18n";
-import { withBase } from "../utils/url";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { getDictionary, defaultLocale } from "../i18n";
 
-const dict = getDictionary();
+const dict = getDictionary(defaultLocale);
 ---
 
 <BaseLayout
   title="Page not found — Mole"
   description="This page doesn't exist."
-  path="/404"
+  routePath="/404"
+  locale={defaultLocale}
 >
   <main id="main" class="not-found">
     <div class="not-found-inner">
       <MoleArt pose="mound" width={140} alt="An empty dirt mound — Mole isn't here" />
       <h1>{dict.notFound.heading}</h1>
       <p class="muted">{dict.notFound.body}</p>
-      <a class="home-link" href={withBase("/")}>{dict.notFound.cta}</a>
+      <a class="home-link" href={getRelativeLocaleUrl(defaultLocale, "/")}>{dict.notFound.cta}</a>
     </div>
   </main>
 </BaseLayout>
