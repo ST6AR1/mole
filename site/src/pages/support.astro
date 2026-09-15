@@ -51,11 +51,15 @@ const release = await getLatestRelease();
                     </div>
                   </details>
                 </li>
-              ) : m.ready && m.href ? (
+              ) : m.href ? (
                 <li class:list={["method-row", "reveal", { "is-ready": m.ready }]} style={`transition-delay:${i * 60}ms`}>
                   <a href={m.href} target="_blank" rel="noopener noreferrer">
                     <span class="method-label">{m.label}</span>
-                    <span class="method-arrow" aria-hidden="true">→</span>
+                    {m.ready ? (
+                      <span class="method-arrow" aria-hidden="true">→</span>
+                    ) : (
+                      <span class="preparing-badge">{dict.support.preparing}</span>
+                    )}
                   </a>
                 </li>
               ) : (
@@ -137,6 +141,12 @@ const release = await getLatestRelease();
   .method-row > a,
   .method-row .method-details summary {
     cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .method-row > a:hover,
+  .method-row .method-details summary:hover {
+    background: color-mix(in srgb, var(--text) 4%, transparent);
   }
 
   .method-row.is-ready .method-label {

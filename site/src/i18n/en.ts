@@ -142,13 +142,13 @@ export const en: Dictionary = {
       {
         key: "bmc",
         label: "Buy Me a Coffee",
-        ready: true,
+        ready: false,
         href: "https://buymeacoffee.com/st6ar1",
       },
       {
         key: "kofi",
         label: "Ko-fi",
-        ready: true,
+        ready: false,
         href: "https://ko-fi.com/wen",
       },
       {
@@ -159,8 +159,8 @@ export const en: Dictionary = {
         qrCaption: "微信支付 · 掃碼支持",
       },
       { key: "linepay", label: "LINE Pay Money", ready: false },
-      { key: "jkopay", label: "街口支付", ready: false },
-      { key: "opay", label: "歐付寶", ready: false },
+      { key: "jkopay", label: "JKoPay (街口支付)", ready: false },
+      { key: "opay", label: "O'Pay (歐付寶)", ready: false },
       { key: "ghsponsors", label: "GitHub Sponsors", ready: false },
       { key: "opencollective", label: "Open Collective", ready: false },
       { key: "paypalme", label: "PayPal.me", ready: false },
