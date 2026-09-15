@@ -1,4 +1,4 @@
-English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)
+English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Português (Brasil)](README.pt-BR.md)
 
 <p align="center">
   <img src="icon/mole-poses/wordmark-logo.png" width="160" alt="mole logo">
