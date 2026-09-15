@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh — build SmartLaunch.app, install helper scripts, and set up the `ports` shell alias.
+# install.sh — build mole.app, install helper scripts, and set up the `ports` shell alias.
 # Usage: ./install.sh
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -12,10 +12,10 @@ cp bin/smart-launch.sh ~/bin/smartlaunch/smart-launch.sh
 cp bin/ports.sh ~/bin/smartlaunch/ports.sh
 chmod +x ~/bin/smartlaunch/smart-launch.sh ~/bin/smartlaunch/ports.sh
 
-echo ">> Installing SmartLaunch.app to ~/Applications ..."
+echo ">> Installing mole.app to ~/Applications ..."
 mkdir -p ~/Applications
-rm -rf ~/Applications/SmartLaunch.app
-cp -R SmartLaunch.app ~/Applications/SmartLaunch.app
+rm -rf ~/Applications/mole.app
+cp -R mole.app ~/Applications/mole.app
 
 SHELL_RC="$HOME/.zshrc"
 MARKER="# Smart Launch tools"
@@ -34,5 +34,5 @@ fi
 
 echo ""
 echo "All set!"
-echo "  - Open ~/Applications/SmartLaunch.app (drag it to your Dock for quick access)"
+echo "  - Open ~/Applications/mole.app (drag it to your Dock for quick access)"
 echo "  - Open a new terminal tab and run 'ports' to see what's listening on localhost"

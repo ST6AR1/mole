@@ -1,16 +1,16 @@
 #!/bin/bash
-# build.sh — compile SmartLaunch.app from source.
+# build.sh — compile mole.app from source.
 # Usage: ./build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="SmartLaunch.app"
+APP="mole.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo ">> Compiling Swift source..."
-swiftc -O -o "$APP/Contents/MacOS/SmartLaunch" App/main.swift
-chmod +x "$APP/Contents/MacOS/SmartLaunch"
+swiftc -O -o "$APP/Contents/MacOS/mole" App/main.swift
+chmod +x "$APP/Contents/MacOS/mole"
 
 echo ">> Copying Info.plist..."
 cp App/Info.plist "$APP/Contents/Info.plist"
@@ -60,3 +60,4 @@ done
 
 echo ">> Done: $APP"
 echo "   Move it to /Applications or ~/Applications, or run ./install.sh"
+

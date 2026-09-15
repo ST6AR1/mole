@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon/mole-poses/wordmark-logo.png" width="160" alt="mole logo">
+</p>
+
 <p align="center">別管指令，直接開工。<br>Skip the commands, get to work.</p>
 
 <p align="center">
@@ -37,7 +41,7 @@
 
 ### 方式一：直接下載
 
-1. 到 [Releases](https://github.com/ST6AR1/mole/releases/latest) 下載最新的 `SmartLaunch-x.x.x.dmg`
+1. 到 [Releases](https://github.com/ST6AR1/mole/releases/latest) 下載最新的 `mole-x.x.x.dmg`
 2. 打開 DMG，把 App 拖到 `Applications`
 3. 因為沒有付費的 Apple 開發者憑證，第一次打開會跳出「無法驗證開發者」的警告——在 Finder 裡**按住 Control 點兩下 App → 選「打開」**，或到「系統設定 → 隱私權與安全性」允許。之後就不會再跳出來了
 
@@ -50,7 +54,7 @@ cd mole
 ./build.sh
 ```
 
-會在專案資料夾裡產生 `SmartLaunch.app`，拖到 `Applications` 就能用。
+會在專案資料夾裡產生 `mole.app`，拖到 `Applications` 就能用。
 
 ## 開發
 
@@ -63,7 +67,7 @@ cd mole
 
 ```bash
 ./make-dmg.sh
-gh release create vX.Y.Z SmartLaunch-X.Y.Z.dmg --title "vX.Y.Z" --notes "這次改了什麼"
+gh release create vX.Y.Z mole-X.Y.Z.dmg --title "vX.Y.Z" --notes "這次改了什麼"
 ```
 
 ## 授權
