@@ -12,6 +12,31 @@ struct UpdateInfo: Equatable {
 let currentVersion = "1.0.1"
 let releasesAPI = "https://api.github.com/repos/ST6AR1/mole/releases/latest"
 
+// 用「打開瀏覽器到預填好的 GitHub 新 issue 頁面」取代真正的自動回報後端——
+// 不用自己架伺服器收集資料，使用者按一下就能把問題送到 repo 的 Issues，我這邊直接看得到。
+func reportIssueURL() -> URL {
+    let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+    let lang = AppLanguage.current == .zh ? "繁體中文" : "English"
+    let title = "Bug report - mole v\(currentVersion)"
+    let body = """
+    **mole version**: \(currentVersion)
+    **macOS**: \(osVersion)
+    **Language**: \(lang)
+
+    ### What happened?
+
+
+    ### Steps to reproduce
+
+    """
+    var comps = URLComponents(string: "https://github.com/ST6AR1/mole/issues/new")!
+    comps.queryItems = [
+        URLQueryItem(name: "title", value: title),
+        URLQueryItem(name: "body", value: body)
+    ]
+    return comps.url!
+}
+
 // 比較兩個「1.2.3」格式的版本字串，回傳 a 是否比 b 新
 func isVersion(_ a: String, newerThan b: String) -> Bool {
     let pa = a.split(separator: ".").map { Int($0) ?? 0 }
@@ -374,6 +399,7 @@ private let localizedStrings: [String: [AppLanguage: String]] = [
     "update.installFailed": [.zh: "安裝新版本失敗（可能沒有寫入權限），請自己到 Release 頁面下載安裝：%@", .en: "Failed to install the new version (maybe a permissions issue) — download it manually from the Releases page: %@"],
     "update.restarting": [.zh: "更新完成，重新啟動中…", .en: "Update complete, restarting…"],
     "update.updating": [.zh: "正在更新…", .en: "Updating…"],
+    "settings.reportIssue": [.zh: "回報問題", .en: "Report an Issue"],
     "update.newVersionAvailable": [.zh: "🎉 有新版本 v%@ 可下載", .en: "🎉 A new version (v%@) is available"],
     "update.now": [.zh: "立即更新", .en: "Update Now"],
     "update.viewRelease": [.zh: "前往查看", .en: "View Release"],
@@ -1154,11 +1180,27 @@ final class SettingsViewController: NSViewController {
             logo.widthAnchor.constraint(equalToConstant: 34 * aspect).isActive = true
         }
 
-        let centerStack = NSStackView(views: [illustration, logo])
+        let reportButton = ClosureButton(onClick: {
+            NSWorkspace.shared.open(reportIssueURL())
+        })
+        reportButton.isBordered = false
+        reportButton.bezelStyle = .inline
+        reportButton.attributedTitle = NSAttributedString(
+            string: t("settings.reportIssue"),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.plTextSecondary,
+                .underlineStyle: NSUnderlineStyle.single.rawValue
+            ]
+        )
+        reportButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let centerStack = NSStackView(views: [illustration, logo, reportButton])
         centerStack.orientation = .vertical
         centerStack.alignment = .centerX
         centerStack.spacing = 10
         centerStack.translatesAutoresizingMaskIntoConstraints = false
+        centerStack.setCustomSpacing(16, after: logo)
 
         // 左下：小一點的 GitHub 圖示 + 版本號。
         let githubButton = ClosureButton(onClick: {
