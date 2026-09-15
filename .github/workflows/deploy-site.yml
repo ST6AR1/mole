@@ -7,7 +7,10 @@ on:
       - "site/**"
       - ".github/workflows/deploy-site.yml"
   release:
-    types: [published] # keep the Download section's version info fresh even without a site code change
+    # Keeps the Changelog and Download sections' version info fresh even
+    # without a site code change — covers publishing a new one, and editing
+    # or deleting an existing one (e.g. pulling back a bad release).
+    types: [published, edited, deleted, unpublished]
   workflow_dispatch: {}
 
 permissions:
