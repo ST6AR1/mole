@@ -18,6 +18,7 @@ const { dict } = Astro.props;
     <nav class="nav" aria-label="Primary">
       <a href="#features">{dict.nav.features}</a>
       <a href={withBase("/changelog")}>{dict.nav.changelog}</a>
+      <a href={withBase("/support")}>{dict.nav.support}</a>
       <a href={REPO_URL} target="_blank" rel="noopener noreferrer"
         >{dict.nav.github}</a
       >

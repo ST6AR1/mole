@@ -12,7 +12,7 @@ const { dict } = Astro.props;
 
 <section class="mole-moment section">
   <div class="container scene-wrap reveal">
-    <div class="ground-line" aria-hidden="true">
+    <div class="folder-row" aria-hidden="true">
       <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-a" />
       <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-b" />
       <MoleArt pose="folder" width={40} alt="" decorative class="folder-img folder-c" />
@@ -46,31 +46,58 @@ const { dict } = Astro.props;
     gap: var(--sp-12);
   }
 
-  .ground-line {
+  .folder-row {
     position: relative;
     width: min(520px, 90%);
-    height: 1px;
-    background: var(--border-strong);
+    height: 44px;
   }
 
-  /* :global() — MoleArt's <img> lives outside this file's style scope. */
-  .ground-line :global(.folder-img) {
+  /* :global() — MoleArt's <img> lives outside this file's style scope.
+     Each folder drops and fades on a loop, as if being handed down to
+     Mole underground; staggered delays keep them from falling in sync. */
+  .folder-row :global(.folder-img) {
     position: absolute;
-    bottom: -2px;
+    top: 0;
     filter: drop-shadow(0 4px 6px rgba(30, 29, 27, 0.12));
+    transform: translateY(0) rotate(var(--rot, 0deg));
+    animation: folder-drop 3.6s ease-in infinite;
   }
 
-  .ground-line :global(.folder-a) {
+  .folder-row :global(.folder-a) {
     left: 8%;
-    transform: rotate(-8deg);
+    --rot: -8deg;
+    animation-delay: 0s;
   }
-  .ground-line :global(.folder-b) {
+  .folder-row :global(.folder-b) {
     left: 46%;
-    transform: rotate(5deg) translateY(-10px);
+    top: -10px;
+    --rot: 5deg;
+    animation-delay: 1.1s;
   }
-  .ground-line :global(.folder-c) {
+  .folder-row :global(.folder-c) {
     left: 80%;
-    transform: rotate(-4deg);
+    --rot: -4deg;
+    animation-delay: 2.2s;
+  }
+
+  @keyframes folder-drop {
+    0%,
+    35% {
+      opacity: 1;
+      transform: translateY(0) rotate(var(--rot, 0deg));
+    }
+    85%,
+    100% {
+      opacity: 0;
+      transform: translateY(56px) rotate(var(--rot, 0deg));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .folder-row :global(.folder-img) {
+      animation: none;
+      opacity: 1;
+    }
   }
 
   .mound-stack {

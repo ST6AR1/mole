@@ -10,6 +10,7 @@ export interface Dictionary {
   nav: {
     features: string;
     changelog: string;
+    support: string;
     github: string;
     download: string;
   };
@@ -97,7 +98,9 @@ export interface Dictionary {
       key: string;
       title: string;
       note: string;
-      methods: string[];
+      ready: boolean;
+      methods: { label: string; href?: string }[];
+      qrCaption?: string;
     }[];
   };
 }

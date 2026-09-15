@@ -4,6 +4,7 @@
 // soon" note) until the maker provides real links/QR codes for each one.
 // To go live for a region: replace that region's card body with a real
 // link/QR image, keep the same card shell for visual consistency.
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
@@ -11,6 +12,7 @@ import MoleArt from "../components/MoleArt.astro";
 import { getDictionary } from "../i18n";
 import { getLatestRelease } from "../data/release";
 import { withBase } from "../utils/url";
+import wechatQr from "../assets/support/wechat-qr.png";
 
 const dict = getDictionary();
 const release = await getLatestRelease();
@@ -46,13 +48,31 @@ const regionEmoji: Record<string, string> = {
                 </span>
                 <h2>{region.title}</h2>
               </div>
-              <span class="coming-soon">{dict.support.comingSoon}</span>
+              {!region.ready && <span class="coming-soon">{dict.support.comingSoon}</span>}
               <p class="region-note muted">{region.note}</p>
-              <ul class="method-list">
-                {region.methods.map((m) => (
-                  <li>{m}</li>
-                ))}
-              </ul>
+
+              {region.key === "china" && (
+                <div class="qr-wrap">
+                  <Image src={wechatQr} alt="WeChat Pay reward QR code" width={160} loading="lazy" />
+                  {region.qrCaption && <span class="qr-caption muted">{region.qrCaption}</span>}
+                </div>
+              )}
+
+              {region.methods.length > 0 && (
+                <ul class="method-list">
+                  {region.methods.map((m) =>
+                    m.href ? (
+                      <li>
+                        <a href={m.href} target="_blank" rel="noopener noreferrer" class="method-link">
+                          {m.label}
+                        </a>
+                      </li>
+                    ) : (
+                      <li class="method-chip">{m.label}</li>
+                    ),
+                  )}
+                </ul>
+              )}
             </article>
           ))
         }
@@ -140,12 +160,48 @@ const regionEmoji: Record<string, string> = {
     gap: var(--sp-2);
   }
 
-  .method-list li {
+  .method-chip {
     font-size: 0.8125rem;
     color: var(--text-muted);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     padding: 0.3em 0.85em;
+  }
+
+  .method-link {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--soil);
+    background: color-mix(in srgb, var(--folder-blue) 14%, var(--surface));
+    border: 1px solid var(--folder-blue);
+    border-radius: var(--radius-pill);
+    padding: 0.3em 0.85em;
+    text-decoration: none;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .method-link:hover {
+    background: color-mix(in srgb, var(--folder-blue) 26%, var(--surface));
+  }
+
+  .qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding-block: var(--sp-2);
+  }
+
+  .qr-wrap :global(img) {
+    width: 140px;
+    height: auto;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .qr-caption {
+    font-size: 0.75rem;
   }
 
   .support-footer {
