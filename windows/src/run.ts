@@ -59,7 +59,7 @@ export async function runProject(
   );
 
   onStage({ stage: "starting-server" });
-  launchProject(result, deps.launchDeps);
+  launchProject(result, dir, deps.launchDeps);
 
   if (isLikelyNonWebLaunch(result)) {
     onStage({ stage: "opened-non-web" });

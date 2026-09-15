@@ -7,19 +7,39 @@ function port(overrides: Partial<PortInfo>): PortInfo {
   return { port: 3000, pid: 1, processName: "node", isDev: true, uptimeSeconds: 0, ...overrides };
 }
 
-test("stopPort sends a plain (non-forceful) taskkill to the given pid", () => {
+test("stopPort sends a plain (non-forceful) taskkill to the given pid on win32", () => {
   const calls: Array<{ cmd: string; args: string[] }> = [];
-  stopPort(14832, (cmd, args) => {
-    calls.push({ cmd, args });
-    return "";
+  stopPort(14832, "win32", {
+    execRaw: (cmd, args) => {
+      calls.push({ cmd, args });
+      return "";
+    },
   });
   assert.deepEqual(calls, [{ cmd: "taskkill.exe", args: ["/PID", "14832"] }]);
 });
 
-test("stopPort swallows the error when the process is already gone", () => {
+test("stopPort sends a real SIGTERM directly (no shelling out) on darwin/linux", () => {
+  const calls: Array<{ pid: number; signal: string }> = [];
+  stopPort(14832, "darwin", { posixKill: (pid, signal) => calls.push({ pid, signal }) });
+  assert.deepEqual(calls, [{ pid: 14832, signal: "SIGTERM" }]);
+});
+
+test("stopPort swallows the error when the process is already gone (win32)", () => {
   assert.doesNotThrow(() => {
-    stopPort(999, () => {
-      throw new Error("ERROR: The process with PID 999 could not be found.");
+    stopPort(999, "win32", {
+      execRaw: () => {
+        throw new Error("ERROR: The process with PID 999 could not be found.");
+      },
+    });
+  });
+});
+
+test("stopPort swallows the error when the process is already gone (posix, ESRCH)", () => {
+  assert.doesNotThrow(() => {
+    stopPort(999, "darwin", {
+      posixKill: () => {
+        throw new Error("kill ESRCH");
+      },
     });
   });
 });
@@ -34,10 +54,20 @@ test("killAllDevPorts stops every dev port except pinned ones, and skips non-dev
   killAllDevPorts(
     ports,
     (p) => p === 4000,
-    (_cmd, args) => {
-      killed.push(Number(args[1]));
-      return "";
+    "win32",
+    {
+      execRaw: (_cmd, args) => {
+        killed.push(Number(args[1]));
+        return "";
+      },
     },
   );
+  assert.deepEqual(killed, [1]);
+});
+
+test("killAllDevPorts uses the posix branch on darwin/linux", () => {
+  const ports = [port({ port: 3000, pid: 1 })];
+  const killed: number[] = [];
+  killAllDevPorts(ports, () => false, "darwin", { posixKill: (pid) => killed.push(pid) });
   assert.deepEqual(killed, [1]);
 });

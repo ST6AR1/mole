@@ -4,7 +4,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
-import { launchProject, launchLogPath, lastNonEmptyLine, readLastLogLine } from "../src/launcher.ts";
+import {
+  launchProject,
+  launchLogPath,
+  lastNonEmptyLine,
+  readLastLogLine,
+  posixPathWithCommonBinDirs,
+} from "../src/launcher.ts";
 import type { DetectionResult } from "../src/types.ts";
 
 function fakeChild() {
@@ -23,7 +29,7 @@ test("launchProject runs runCommand through powershell.exe for a powershell Dete
   try {
     const calls: any[] = [];
     const result: DetectionResult = { label: "Node.js (npm)", runCommand: "npm run dev", shell: "powershell" };
-    const { logPath } = launchProject(result, {
+    const { logPath } = launchProject(result, "/Users/wen/projects/my-app", {
       tmpDir: () => dir,
       spawn: (command, args, options) => {
         calls.push({ command, args, options });
@@ -36,17 +42,18 @@ test("launchProject runs runCommand through powershell.exe for a powershell Dete
     assert.equal(calls[0].command, "powershell.exe");
     assert.deepEqual(calls[0].args, ["-NoProfile", "-Command", "npm run dev"]);
     assert.equal(calls[0].options.detached, true);
+    assert.equal(calls[0].options.cwd, "/Users/wen/projects/my-app");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("launchProject uses bash -lc for a bash DetectionResult", () => {
+test("launchProject uses a plain (non-login) bash -c for a bash DetectionResult", () => {
   const dir = mkdtempSync(join(tmpdir(), "mole-launcher-test-"));
   try {
     const calls: any[] = [];
     const result: DetectionResult = { label: "Go", runCommand: "go run .", shell: "bash" };
-    launchProject(result, {
+    launchProject(result, "/Users/wen/projects/go-app", {
       tmpDir: () => dir,
       spawn: (command, args, options) => {
         calls.push({ command, args, options });
@@ -54,10 +61,84 @@ test("launchProject uses bash -lc for a bash DetectionResult", () => {
       },
     });
     assert.equal(calls[0].command, "bash");
-    assert.deepEqual(calls[0].args, ["-lc", "go run ."]);
+    assert.deepEqual(calls[0].args, ["-c", "go run ."]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("launchProject spawns with cwd set to the project directory (detect.ts writes every runCommand relative to it)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mole-launcher-test-"));
+  try {
+    const calls: any[] = [];
+    // A monorepo subfolder command like this only makes sense if the shell
+    // starts out standing in the *parent* directory that was detected —
+    // exactly what `cwd` needs to supply.
+    launchProject(
+      { label: "Node.js 子專案 (desktop, pnpm)", runCommand: "Set-Location 'desktop'; pnpm run dev", shell: "powershell" },
+      "/Users/wen/projects/my-monorepo",
+      { tmpDir: () => dir, spawn: (command, args, options) => (calls.push({ command, args, options }), fakeChild()) },
+    );
+    assert.equal(calls[0].options.cwd, "/Users/wen/projects/my-monorepo");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("launchProject prepends the common bin dirs to PATH for a bash DetectionResult, rather than sourcing a login shell profile", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mole-launcher-test-"));
+  try {
+    const calls: any[] = [];
+    launchProject(
+      { label: "Go", runCommand: "go run .", shell: "bash" },
+      "/Users/wen/projects/go-app",
+      {
+        tmpDir: () => dir,
+        spawn: (command, args, options) => {
+          calls.push({ command, args, options });
+          return fakeChild();
+        },
+      },
+    );
+    assert.match(calls[0].options.env.PATH, /\/opt\/homebrew\/bin/);
+    assert.match(calls[0].options.env.PATH, /\.nvm\/current\/bin/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("launchProject leaves the environment untouched for a powershell DetectionResult", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mole-launcher-test-"));
+  try {
+    const calls: any[] = [];
+    launchProject(
+      { label: "Node.js (npm)", runCommand: "npm run dev", shell: "powershell" },
+      "/Users/wen/projects/my-app",
+      {
+        tmpDir: () => dir,
+        spawn: (command, args, options) => {
+          calls.push({ command, args, options });
+          return fakeChild();
+        },
+      },
+    );
+    assert.equal(calls[0].options.env, undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("posixPathWithCommonBinDirs prepends the fixed list ported from smart-launch.sh's own PATH fix-up", () => {
+  const result = posixPathWithCommonBinDirs("/usr/bin:/bin", "/Users/wen");
+  assert.equal(
+    result,
+    "/Users/wen/.local/bin:/opt/homebrew/bin:/usr/local/bin:/Users/wen/.nvm/current/bin:/usr/bin:/bin",
+  );
+});
+
+test("posixPathWithCommonBinDirs still returns the prepend list when the current PATH is undefined", () => {
+  const result = posixPathWithCommonBinDirs(undefined, "/Users/wen");
+  assert.equal(result, "/Users/wen/.local/bin:/opt/homebrew/bin:/usr/local/bin:/Users/wen/.nvm/current/bin");
 });
 
 test("launchProject unrefs the child so it doesn't keep the app process alive", () => {
@@ -70,6 +151,7 @@ test("launchProject unrefs the child so it doesn't keep the app process alive", 
     };
     launchProject(
       { label: "Go", runCommand: "go run .", shell: "bash" },
+      "/Users/wen/projects/go-app",
       { tmpDir: () => dir, spawn: () => child },
     );
     assert.equal(unrefCalled, true);

@@ -1,0 +1,382 @@
+/* Renderer styles for the Windows Electron shell. Layout/spacing is new
+   (this app's window shape doesn't match the site's), but every color,
+   radius, shadow and font comes from tokens.css — copied verbatim from
+   ../../../site/src/styles/tokens.css by the build script so this can't
+   silently drift from the site's palette. */
+
+* {
+  box-sizing: border-box;
+}
+
+/* A class below sets `display` on several of these same elements, which —
+   at equal specificity — would otherwise beat the browser's default
+   `[hidden] { display: none }` UA rule once that class is also present.
+   This reasserts it so toggling the `hidden` attribute always wins. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* --- titlebar --- */
+
+#titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 var(--sp-3);
+  background: var(--surface-warm);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+
+#titlebar-drag {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.titlebar-logo {
+  height: 20px;
+  width: auto;
+  display: block;
+}
+
+#titlebar-controls {
+  display: flex;
+  gap: var(--sp-1);
+  -webkit-app-region: no-drag;
+}
+
+#titlebar-controls button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#titlebar-controls button:hover {
+  background: var(--surface-sunken);
+}
+
+#btn-close:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* --- layout --- */
+
+#app {
+  height: calc(100% - 44px);
+  overflow-y: auto;
+  padding: var(--sp-6) var(--sp-6) var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+/* --- drop zone --- */
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-4);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.drop-zone.drag-over {
+  border-color: var(--folder-blue-deep);
+  background: var(--surface-warm);
+}
+
+.drop-mascot {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  margin-bottom: var(--sp-2);
+}
+
+.drop-title {
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  margin: 0;
+  line-height: var(--lh-heading);
+}
+
+.drop-subtitle {
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-2);
+}
+
+.btn-primary {
+  background: var(--soil);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--sp-2) var(--sp-6);
+  font-size: var(--fs-body-sm);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--soil-hover);
+}
+
+.last-launched {
+  color: var(--text-faint);
+  font-size: var(--fs-small);
+  margin: var(--sp-2) 0 0;
+}
+
+/* --- launch status --- */
+
+.launch-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  border-radius: var(--radius-lg);
+  background: var(--surface-warm);
+  border: 1px solid var(--border);
+}
+
+.launch-mascot {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.launch-status-text {
+  white-space: pre-line;
+  color: var(--text);
+  margin: 0;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  text-decoration: underline;
+  font-size: var(--fs-small);
+  padding: 0;
+}
+
+/* --- running section --- */
+
+.autoclose-notice {
+  background: var(--surface-warm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  margin: 0;
+}
+
+.running-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.running-header h2 {
+  font-size: var(--fs-h3);
+  margin: 0;
+}
+
+.running-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.expire-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+}
+
+#expire-select {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-small);
+}
+
+.btn-danger-text {
+  background: none;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-4);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.btn-danger-text:hover {
+  background: var(--danger-bg);
+}
+
+.btn-danger-text:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-1);
+  padding: var(--sp-8) 0;
+  color: var(--text-faint);
+}
+
+.empty-mascot {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: var(--sp-2);
+}
+
+.empty-title {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.empty-zzz {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: var(--fs-doodle);
+}
+
+.ports-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.port-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.port-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.port-row-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-weight: 600;
+}
+
+.port-row-title .port-number {
+  color: var(--folder-blue-deep);
+}
+
+.port-row-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pin-badge {
+  font-size: var(--fs-small);
+  color: var(--butter);
+  background: rgba(243, 215, 122, 0.25);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--sp-2);
+}
+
+.port-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.icon-btn:hover {
+  background: var(--surface-sunken);
+}
+
+.icon-btn.pinned {
+  background: var(--butter);
+  border-color: var(--butter);
+}
+
+.btn-stop {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  background: none;
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.btn-stop:hover {
+  background: var(--danger-bg);
+}

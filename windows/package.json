@@ -3,13 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Phase 1 of Windows support: a cross-platform port of bin/smart-launch.sh's project-type detection. UI/process-launching comes later — see README.md.",
+  "description": "Windows support: a cross-platform port of bin/smart-launch.sh's project-type detection, the launcher/port-polling/stop runtime layer, and an Electron shell on top of both. See README.md.",
+  "main": "dist/electron/main.js",
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:electron": "node scripts/build-electron.mjs",
+    "start": "npm run build:electron && electron ."
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "electron": "^44.4.0",
+    "typescript": "^5.7.0"
   }
 }

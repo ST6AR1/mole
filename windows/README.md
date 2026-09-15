@@ -161,16 +161,102 @@ spawning/timing (`test/ports.test.ts`, `test/processInfo.test.ts`,
 `test/devPorts.test.ts`, `test/launcher.test.ts`, `test/poll.test.ts`,
 `test/stop.test.ts`, `test/expiry.test.ts`, `test/run.test.ts`).
 
-## What's next (not built yet)
+## Phase 3: the Electron app
 
-Everything here is pure Node.js with no UI. **Phase 3 is the Electron app
-itself**: a window, a drag-and-drop target, the running-ports list, the
-Story/General/About tabs, and Settings — reusing `../icon/mole-poses/*.png`
-and the design tokens in `../site/src/styles/tokens.css`, with `src/run.ts`
-and the other modules here as its entire backend. Two things also
-explicitly need a real Windows machine before shipping, since neither can
-be authentically produced in this sandbox: confirming `netstat -ano`'s
-column layout matches what's parsed here on a real install, and confirming
-`taskkill /PID <pid>` (no `/F`) actually stops common dev servers
-(Node/Vite, Python, etc.) as gracefully as `SIGTERM` does on macOS rather
-than needing a forced fallback.
+`src/electron/` is a working Electron shell on top of everything above —
+window, custom titlebar (frameless, matching the mac app's branded
+toolbar instead of native chrome), drag-and-drop + a folder picker,
+the running-ports list with Stop/pin/auto-close, and a Settings row for
+the expire interval. It reuses the real mole art from `../icon/mole-poses/`
+and the color/spacing tokens from `../site/src/styles/tokens.css` (copied
+in by the build script, not hand-retyped, so it can't silently drift).
+
+```bash
+npm install
+npm start   # builds (tsc + copies static assets) and launches Electron
+```
+
+`npm run build:electron` alone compiles `src/**/*.ts` to CommonJS in
+`dist/` (via `scripts/build-electron.mjs`) and copies the renderer's
+static HTML/CSS/JS plus the art assets and tokens.css alongside it — see
+that script for the exact file list. `dist/` is gitignored; there is no
+packaging/installer step here (no electron-builder, no release artifact)
+since this is a dev-mode shell for testing the logic, not a distributable
+build.
+
+### What running it for real actually found
+
+Every module up to this point had unit tests, but nothing had exercised
+the *pieces those tests can't reach* — real IPC between the main process
+and a real renderer, a real spawned child process, a real listening port.
+Since `detectProject`/`fetchDevPorts`/`launchProject`/`stopPort` are all
+already cross-platform (darwin/linux branches exist specifically so this
+module can be developed without a Windows machine), the whole app could
+actually be run and driven end-to-end on this Mac — launch a real Node
+project, watch it appear in the running list, stop it, watch it disappear
+— via Chrome DevTools Protocol (`electron --remote-debugging-port`,
+scripted from the outside), plus screenshots to check the UI actually
+rendered right. That surfaced three real bugs no unit test had caught,
+now fixed:
+
+1. **`launchProject` never set the spawned process's `cwd`.** `detectProject`
+   writes every command (`"npm run dev"`, or `Set-Location 'sub'; ...` for
+   a monorepo) as relative to the project directory, assuming the shell is
+   already standing in it — but nothing was passing that directory through
+   to `spawn()`. In practice this meant the dev server command ran wherever
+   the *app's own* process happened to start from, not the dropped folder.
+   `launchProject` now takes `dirPath` and sets it as `cwd` (`src/launcher.ts`).
+2. **The bash branch used a login shell (`bash -lc`), which is fragile.**
+   The intent (GUI apps don't inherit a Terminal's PATH, so tools like nvm
+   or homebrew node need help) is real and is exactly what
+   `bin/smart-launch.sh` already solves — by exporting a specific, minimal
+   PATH prepend (`$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/current/bin`),
+   *not* by sourcing the user's full shell profile. `bash -lc` reproduces
+   the profile-sourcing approach instead, and while smoke-testing this a
+   real (if unrelated) broken Homebrew Node install on this machine caused
+   the profile source to crash the launch outright — a class of failure a
+   full login shell is exposed to that a fixed PATH prepend isn't. Fixed to
+   `bash -c` plus the same explicit PATH prepend, ported as
+   `posixPathWithCommonBinDirs`.
+3. **A `hidden` attribute stopped working once its element also had a
+   `display`-setting CSS class.** The launch-status card was visible on
+   startup when it should have been hidden — `.launch-status { display:
+   flex }` and the browser's built-in `[hidden] { display: none }` have
+   equal specificity, and author CSS beats the user-agent default
+   regardless, so the class silently won. Fixed with an explicit
+   `[hidden] { display: none !important; }` rule in `styles.css`.
+
+`stop.ts` also gained a real (non-shelled-out) POSIX branch — sending the
+exact `SIGTERM` the mac app itself sends, via `process.kill`, rather than
+only knowing how to run Windows's `taskkill.exe` — specifically so this
+kind of live test could exercise Stop for real instead of trusting it
+untested; the win32 branch (`taskkill /PID`, no `/F`) is unchanged and is
+still what actually ships.
+
+### What still can't be verified without a real Windows machine
+
+- Whether `netstat -ano`'s column layout on a real Windows install matches
+  what `ports.ts` parses (checked here only against a captured sample).
+- Whether `taskkill /PID <pid>` (no `/F`) stops common dev servers
+  (Node/Vite, Python, etc.) as gracefully as `SIGTERM` does on macOS, or
+  whether some of them ignore it and need a forced fallback.
+- The PowerShell `Get-Process`/`ConvertTo-Json` calls in `processInfo.ts`
+  against a real Windows PowerShell 5.1 vs. PowerShell 7+ install (the
+  uptime-as-plain-number trick was specifically chosen to sidestep a known
+  serialization difference between them, but that's a documented risk, not
+  a tested one).
+
+### Known gaps in the phase-3 shell itself
+
+- **Cancel doesn't actually cancel.** Clicking "先不等了" hides the status
+  card in the renderer, but the `runProject` promise in the main process
+  keeps running to completion in the background — there's no cancellation
+  token wired through the IPC boundary yet (the mac app's `pollToken`
+  UUID-swap approach doesn't cross a process boundary for free the way it
+  does in-process). Low-impact (it just keeps polling harmlessly for up to
+  150s) but not a faithful port of that behavior yet.
+- No Story/General/About tabs or in-app Settings beyond the auto-close
+  interval — this was scoped to the functional core (launch, running list,
+  stop, pin, auto-close) rather than the full mac app's UI surface.
+- No packaging/auto-update (electron-builder, electron-updater) — out of
+  scope until there's a real Windows machine to test an installer on.

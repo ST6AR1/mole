@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';" />
+    <title>Mole</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header id="titlebar">
+      <div id="titlebar-drag">
+        <img src="assets/wordmark-logo.png" alt="Mole" class="titlebar-logo" />
+      </div>
+      <div id="titlebar-controls">
+        <button id="btn-minimize" title="最小化" aria-label="最小化">&#8211;</button>
+        <button id="btn-maximize" title="最大化" aria-label="最大化">&#9723;</button>
+        <button id="btn-close" title="關閉" aria-label="關閉">&#10005;</button>
+      </div>
+    </header>
+
+    <main id="app">
+      <section id="drop-zone" class="drop-zone">
+        <img id="drop-mascot" src="assets/hold-folder-idle.png" alt="" class="drop-mascot" />
+        <h1 id="drop-title" class="drop-title">把專案資料夾拖到這裡</h1>
+        <p id="drop-subtitle" class="drop-subtitle">不用記指令，我來判斷</p>
+        <button id="btn-choose-folder" class="btn-primary">選擇資料夾</button>
+        <p id="last-launched" class="last-launched" hidden></p>
+      </section>
+
+      <section id="launch-status" class="launch-status" hidden>
+        <img id="launch-mascot" src="assets/dig-anim-0.png" alt="" class="launch-mascot" />
+        <p id="launch-status-text" class="launch-status-text"></p>
+        <button id="btn-cancel-launch" class="btn-text">先不等了</button>
+      </section>
+
+      <section id="running-section" class="running-section">
+        <p id="autoclose-notice" class="autoclose-notice" hidden></p>
+        <div class="running-header">
+          <h2>執行中的專案</h2>
+          <div class="running-header-actions">
+            <label class="expire-select-wrap">
+              <span class="expire-label">自動關閉</span>
+              <select id="expire-select">
+                <option value="30">30 分鐘</option>
+                <option value="60">1 小時</option>
+                <option value="120">2 小時（預設）</option>
+                <option value="240">4 小時</option>
+                <option value="0">停用自動過期</option>
+              </select>
+            </label>
+            <button id="btn-kill-all" class="btn-danger-text">全部關閉</button>
+          </div>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <img src="assets/mound.png" alt="" class="empty-mascot" />
+          <p class="empty-title">目前沒有專案在跑</p>
+          <p class="empty-zzz">zzz⋯</p>
+        </div>
+
+        <ul id="ports-list" class="ports-list" hidden></ul>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

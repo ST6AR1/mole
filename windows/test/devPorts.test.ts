@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fetchDevPortsWindows } from "../src/devPorts.ts";
+import { fetchDevPorts, fetchDevPortsWindows } from "../src/devPorts.ts";
 
 const NETSTAT_SAMPLE = `
   TCP    0.0.0.0:5173           0.0.0.0:0              LISTENING       14832
@@ -55,4 +55,16 @@ test("returns [] without calling Get-Process when nothing is listening", () => {
   };
   assert.deepEqual(fetchDevPortsWindows({ execRaw: fakeExec }), []);
   assert.equal(processInfoCalled, false);
+});
+
+test("fetchDevPorts('darwin', ...) dispatches to lsof + ps instead of netstat + Get-Process", () => {
+  const fakeExec = (cmd: string) => {
+    if (cmd === "lsof") {
+      return "COMMAND   PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode    14832    wen   23u  IPv4 0x0      0t0  TCP *:5173 (LISTEN)\n";
+    }
+    if (cmd === "/bin/ps") return "14832 00:01:30 /usr/local/bin/node\n";
+    throw new Error(`unexpected command ${cmd}`);
+  };
+  const result = fetchDevPorts("darwin", { execRaw: fakeExec });
+  assert.deepEqual(result, [{ port: 5173, pid: 14832, processName: "node", isDev: true, uptimeSeconds: 90 }]);
 });
