@@ -92,9 +92,9 @@ A：Settings 的語言選單裡，每個語言都是用自己的原生名稱顯�
 **Q：支援哪些專案類型？**
 A：Node.js（npm / pnpm / yarn / bun）、靜態網頁、Python、Ruby / Rails、Go、Rust、Docker Compose、Deno、PHP、Flutter、Java / Kotlin、.NET、Chrome 擴充功能、原生 macOS App 等等，偵測邏輯還會持續擴充。
 
-## 使用條款
+## 授權條款
 
-本專案原始碼公開於 GitHub，僅供參考與個人使用，版權所有。若要另作他用請先與作者聯絡。
+MIT 授權，詳見 [LICENSE](LICENSE)。免費且開源，歡迎使用、fork、打包成自己的版本。
 
 ## 開發
 

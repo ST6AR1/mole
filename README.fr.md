@@ -92,9 +92,9 @@ R : Dans le menu déroulant des langues des Réglages, chaque langue est affich�
 **Q : Quels types de projets sont pris en charge ?**
 R : Node.js (npm / pnpm / yarn / bun), sites statiques, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, extensions Chrome, apps macOS natives, et plus encore — la détection continue de s'étendre au fil du temps.
 
-## Conditions d'utilisation
+## Licence
 
-Le code source de ce projet est public sur GitHub à titre de référence et pour un usage personnel ; tous droits réservés. Contactez l'auteur avant toute autre utilisation.
+Licence MIT — voir [LICENSE](LICENSE). Gratuit et open source : utilisez-le, forkez-le, distribuez votre propre build.
 
 ## Développement
 

@@ -92,9 +92,9 @@ A: Im Sprach-Dropdown der Einstellungen wird jede Sprache in ihrem eigenen nativ
 **F: Welche Projekttypen werden unterstützt?**
 A: Node.js (npm / pnpm / yarn / bun), statische Websites, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, Chrome-Erweiterungen, native macOS-Apps und mehr — die Erkennung wird laufend erweitert.
 
-## Nutzungsbedingungen
+## Lizenz
 
-Der Quellcode dieses Projekts ist auf GitHub zu Referenz- und persönlichen Zwecken öffentlich einsehbar; alle Rechte vorbehalten. Bitte vor jeder anderen Nutzung Kontakt mit dem Autor aufnehmen.
+MIT-Lizenz — siehe [LICENSE](LICENSE). Kostenlos und Open Source: nutzen, forken, eigenen Build verteilen.
 
 ## Entwicklung
 

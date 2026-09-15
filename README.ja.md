@@ -92,9 +92,9 @@ A: Settings の言語ドロップダウンでは、各言語がそれぞれの�
 **Q: どのプロジェクトタイプに対応していますか？**
 A: Node.js（npm / pnpm / yarn / bun）、静的サイト、Python、Ruby / Rails、Go、Rust、Docker Compose、Deno、PHP、Flutter、Java / Kotlin、.NET、Chrome 拡張機能、ネイティブ macOS アプリなど。検出範囲は今後も拡大していきます。
 
-## 利用規約
+## ライセンス
 
-本プロジェクトのソースコードは、参考および個人利用のために GitHub 上で公開されています。All rights reserved（無断転載・複製を禁じます）。それ以外の用途で利用したい場合は、事前に作者までご連絡ください。
+MIT ライセンス — 詳細は [LICENSE](LICENSE) をご覧ください。無料・オープンソースです。自由に使用、フォーク、独自ビルドの配布ができます。
 
 ## 開発
 

@@ -92,9 +92,9 @@ R: No menu de idiomas em Configurações, cada idioma aparece no seu próprio no
 **P: Quais tipos de projeto são suportados?**
 R: Node.js (npm / pnpm / yarn / bun), sites estáticos, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, extensões do Chrome, apps nativos do macOS, entre outros — a detecção continua sendo ampliada com o tempo.
 
-## Termos de uso
+## Licença
 
-O código-fonte deste projeto está público no GitHub para referência e uso pessoal; todos os direitos reservados. Entre em contato com o autor antes de usá-lo para qualquer outra finalidade.
+Licença MIT — veja [LICENSE](LICENSE). Gratuito e open source: use, faça fork, distribua seu próprio build.
 
 ## Desenvolvimento
 

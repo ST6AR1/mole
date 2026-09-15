@@ -92,9 +92,9 @@ A: In the Settings language dropdown, every language is shown in its own native 
 **Q: What project types are supported?**
 A: Node.js (npm / pnpm / yarn / bun), static sites, Python, Ruby / Rails, Go, Rust, Docker Compose, Deno, PHP, Flutter, Java / Kotlin, .NET, Chrome extensions, native macOS apps, and more — detection keeps expanding over time.
 
-## Usage Terms
+## License
 
-This project's source is public on GitHub for reference and personal use; all rights reserved. Get in touch with the author before using it for anything else.
+MIT — see [LICENSE](LICENSE). Free and open source; use it, fork it, ship your own build.
 
 ## Development
 
