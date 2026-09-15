@@ -8,7 +8,7 @@ import MoleArt from "./MoleArt.astro";
 <div class="logo-band reveal">
   <MoleArt
     pose="wordmark-logo"
-    width={360}
+    width={520}
     alt="Mole"
     loading="eager"
     class="logo-band-mark"
@@ -19,11 +19,11 @@ import MoleArt from "./MoleArt.astro";
   .logo-band {
     display: flex;
     justify-content: center;
-    padding-block: clamp(1.5rem, 1rem + 2vw, 3rem) 0;
+    padding-block: clamp(2rem, 1.5rem + 2.5vw, 3.5rem) 0;
   }
 
   .logo-band :global(.logo-band-mark) {
-    width: clamp(160px, 22vw, 260px);
+    width: clamp(240px, 32vw, 420px);
     height: auto;
     animation: logo-bob 5s ease-in-out infinite;
   }
